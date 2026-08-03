@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0F262C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Фаза 0 — журнал</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --paper:#E7ECEE;
+    --card:#FFFFFF;
+    --tint:#F6F8F9;
+    --ink:#0F262C;
+    --soft:#54696F;
+    --rule:#C6D1D4;
+    --rule-soft:#DDE4E6;
+    --clean:#4C7A57;
+    --hold:#9E7524;
+    --drop:#98453A;
+    --accent:#26666E;
+    --onink:#FFFFFF;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0F1719;
+      --card:#172226;
+      --tint:#121D20;
+      --ink:#E3ECEE;
+      --soft:#8DA3A8;
+      --rule:#2C3C41;
+      --rule-soft:#223035;
+      --clean:#6FA87B;
+      --hold:#C79B4A;
+      --drop:#C4715F;
+      --accent:#6BB4BC;
+      --onink:#0F1719;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 64px}
+
+  .lbl{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--soft);
+  }
+
+  .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:2px solid var(--ink)}
+  .top h1{font-size:26px;letter-spacing:-.03em;font-weight:800;margin:0;line-height:1}
+  .top .sub{margin-top:4px}
+  .top .right{text-align:right;flex:none}
+
+  section{margin-top:22px}
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:16px}
+  h2{font-size:12px;font-family:var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--soft);font-weight:500;margin:0 0 10px}
+
+  .check{border:2px solid var(--ink);background:var(--card);border-radius:2px;overflow:hidden}
+  .check-body{padding:18px 16px}
+  .verdict{font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1;margin:6px 0 4px}
+  @media (min-width:420px){.verdict{font-size:44px}}
+  .verdict-note{font-size:14px;color:var(--soft);max-width:46ch}
+  .c-clean{color:var(--clean)} .c-hold{color:var(--hold)} .c-drop{color:var(--drop)}
+
+  .scale{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+  .scale button{
+    font-family:var(--mono);font-size:15px;font-weight:600;
+    min-width:38px;height:40px;border:1px solid var(--rule);background:var(--card);color:var(--ink);
+    border-radius:2px;cursor:pointer;
+  }
+  .scale button:hover{border-color:var(--ink)}
+  .scale button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .strip{display:flex;gap:3px;padding:12px 16px;border-top:1px solid var(--rule-soft);background:var(--tint);overflow-x:auto}
+  .cell{flex:none;width:26px;height:34px;border-radius:1px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:12px;font-weight:600;color:var(--onink);background:var(--rule)}
+  .cell.clean{background:var(--clean)} .cell.hold{background:var(--hold)} .cell.drop{background:var(--drop)}
+  .cell.pending{background:var(--card);border:1px dashed var(--soft);color:var(--soft)}
+  .streak{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 16px 12px;background:var(--tint)}
+  .streak b{font-family:var(--mono);font-size:13px;text-align:right}
+
+  ol.ex{list-style:none;margin:0;padding:0}
+  ol.ex li{border-top:1px solid var(--rule-soft);padding:11px 0}
+  ol.ex li:first-child{border-top:0}
+  .row{display:flex;align-items:flex-start;gap:11px}
+  .row input[type=checkbox]{width:19px;height:19px;margin:2px 0 0;accent-color:var(--accent);flex:none;cursor:pointer}
+  .nm{font-weight:600;font-size:15px}
+  .dose{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600}
+  .grow{flex:1;min-width:0}
+  .tip{font-size:13px;color:var(--soft);margin-top:4px;display:none}
+  .tip.on{display:block}
+  .tipbtn{background:none;border:0;color:var(--soft);font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;cursor:pointer;padding:2px 0;text-decoration:underline}
+  li.done .nm{opacity:.42;text-decoration:line-through}
+  li.done .dose{opacity:.42}
+
+  .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+  .f label{display:block;margin-bottom:4px}
+  .f input,.f textarea{
+    width:100%;font-family:var(--mono);font-size:15px;color:var(--ink);
+    border:1px solid var(--rule);border-radius:2px;padding:8px 9px;background:var(--card);
+  }
+  .f textarea{font-family:var(--sans);font-size:14px;resize:vertical;min-height:56px}
+  .f input:focus,.f textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  button.act{
+    font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+    padding:11px 15px;border-radius:2px;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--onink);
+  }
+  button.act.ghost{background:var(--card);color:var(--ink)}
+  button.act:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+  th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:500;text-align:left;
+     padding:0 6px 7px 0;border-bottom:1px solid var(--rule)}
+  td{padding:8px 6px 8px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  td.n{color:var(--soft)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+  .empty{color:var(--soft);font-size:14px;padding:6px 0}
+  button.mini{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--card);
+    border:1px solid var(--rule);border-radius:2px;padding:5px 7px;cursor:pointer;white-space:nowrap}
+  button.mini:hover{border-color:var(--ink)}
+  button.mini:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  button.mini.ask{color:var(--soft);border-style:dashed}
+  td.sub{font-family:var(--sans);font-size:12px;padding-bottom:10px}
+  .inline-scale{display:flex;gap:3px;flex-wrap:wrap}
+  .inline-scale button{min-width:28px;padding:5px 0;text-align:center}
+
+  details{border-top:1px solid var(--rule);padding:11px 0}
+  details summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"+ ";font-family:var(--mono);color:var(--accent)}
+  details[open] summary::before{content:"\2212 "}
+  details .in{font-size:14px;padding-top:9px}
+  details .in ul{margin:6px 0;padding-left:18px}
+  details .in li{margin:3px 0}
+  details .in table{font-family:var(--sans);font-size:13px}
+  details .in td{padding:5px 8px 5px 0}
+
+  .foot{margin-top:26px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .foot button{background:none;border:0;color:var(--soft);font-family:var(--mono);font-size:10px;
+    letter-spacing:.12em;text-transform:uppercase;cursor:pointer;text-decoration:underline;padding:4px 0}
+  .warn{margin-top:18px;border:1px solid var(--hold);border-radius:2px;padding:12px;font-size:13px;display:none}
+  .warn.on{display:block}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--onink);
+    font-family:var(--mono);font-size:12px;padding:10px 16px;border-radius:2px;opacity:0;pointer-events:none;
+    transition:opacity .2s;z-index:9}
+  .toast.on{opacity:1}
+  @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <div class="lbl">Домашняя силовая программа</div>
+      <h1>Фаза 0 · калибровка</h1>
+      <div class="sub lbl" id="phaseNote">3 занятия в неделю · день наблюдения между ними</div>
+    </div>
+    <div class="right">
+      <div class="lbl">Занятие</div>
+      <div style="font-family:var(--mono);font-size:30px;font-weight:700;line-height:1" id="sessNo">1</div>
+    </div>
+  </div>
+
+  <section class="check">
+    <div class="check-body">
+      <div class="lbl" id="checkLbl">Утренняя проверка</div>
+      <div class="verdict" id="verdict">—</div>
+      <div class="verdict-note" id="verdictNote">Загрузка…</div>
+      <div class="scale" id="scale" style="display:none"></div>
+    </div>
+    <div class="strip" id="strip"></div>
+    <div class="streak">
+      <span class="lbl">Чистых утр подряд</span>
+      <b id="streak">0</b>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Сегодняшняя доза</h2>
+    <ol class="ex" id="exList"></ol>
+    <div style="margin-top:12px;font-size:13px;color:var(--soft)">
+      Плюс ходьба отдельно от занятия: 7 000–10 000 шагов.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Отчёт за занятие</h2>
+    <div class="fields">
+      <div class="f"><label class="lbl" for="fDate">Дата</label><input id="fDate" type="date"></div>
+      <div class="f"><label class="lbl" for="fDuring">Во время 0–10</label><input id="fDuring" type="number" min="0" max="10" inputmode="numeric"></div>
+      <div class="f"><label class="lbl" for="fAfter">Через час 0–10</label><input id="fAfter" type="number" min="0" max="10" inputmode="numeric"></div>
+      <div class="f"><label class="lbl" for="fFear">Настороженность 0–10</label><input id="fFear" type="number" min="0" max="10" inputmode="numeric"></div>
+    </div>
+    <div class="f" style="margin-top:10px">
+      <label class="lbl" for="fNote">Вне тренировки — шаги, сон, резкие движения</label>
+      <textarea id="fNote" placeholder="6 400 шагов, сон 6 ч, час просидел в машине"></textarea>
+    </div>
+    <div class="btns">
+      <button class="act" id="save">Сохранить занятие</button>
+      <button class="act ghost" id="copy">Скопировать для чата</button>
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:var(--soft)">
+      Утренняя цифра заполняется завтра, наверху. До неё занятие считается незакрытым.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Журнал</h2>
+    <div id="logBox"></div>
+  </section>
+
+  <section class="card">
+    <h2>Кратко</h2>
+
+    <details>
+      <summary>Правило допустимой боли</summary>
+      <div class="in"><table>
+        <tr><td>Во время</td><td>≤2/10 и не растёт от подхода к подходу</td></tr>
+        <tr><td>Растёт внутри подхода</td><td>закончить подход, следующий не делать</td></tr>
+        <tr><td>Через час</td><td>≤2/10, к базовому за 60 мин</td></tr>
+        <tr><td>Следующее утро</td><td>единственная цифра, по которой принимается решение</td></tr>
+        <tr><td>4/10 и выше, или ниже ягодицы</td><td>протокол обострения</td></tr>
+      </table></div>
+    </details>
+
+    <details>
+      <summary>Правило прогрессии</summary>
+      <div class="in"><ul>
+        <li>Одно изменение за занятие: повторы ИЛИ подход ИЛИ секунды ИЛИ новое упражнение.</li>
+        <li>Шаг: +2 повтора, +5 секунд или +1 подход. Не больше.</li>
+        <li>Право на добавление даёт чистое утро. Первое добавление в фазе — после двух чистых подряд.</li>
+        <li>Утро не чистое → повторить ту же дозу. Не откат и не пропуск.</li>
+        <li>Резкое движение в жизни программу не меняет — только следующее занятие.</li>
+      </ul></div>
+    </details>
+
+    <details>
+      <summary>Запрещено в Фазе 0</summary>
+      <div class="in"><ul>
+        <li>Гантели в любом виде. Турник, включая просто вис.</li>
+        <li>Бег, прыжки, запланированная возня и борьба.</li>
+        <li>Два силовых занятия подряд без дня между ними.</li>
+        <li>Упражнения «от себя», сверх списка.</li>
+        <li>Сидеть дольше 45 минут без того, чтобы встать и пройтись 2 минуты.</li>
+      </ul></div>
+    </details>
+
+    <details>
+      <summary>Обострение — первые 72 часа</summary>
+      <div class="in"><ul>
+        <li><b>Сначала причина.</b> Резкое движение в жизни или накопление — программу не трогаем, пауза 48 ч, возврат на ту же дозу. Само занятие — откат до 50% последней чистой дозы.</li>
+        <li>0–24 ч: ходьба вдвое меньше, кусками по 10–15 мин. Дыхание 2×2 мин, кошка-корова 1×6 на малой амплитуде. Силовое стоп. Постельного режима нет, положение менять каждые 20–30 мин.</li>
+        <li>24–72 ч: ходьба к обычному объёму. Силовое всё ещё стоп, если выше 2/10 при движении.</li>
+        <li>После 72 ч: заход на 50% дозы, которая была чистой за два занятия до срыва. Две чистые сессии → возврат к прежней дозе → прогрессия половинными шагами две недели.</li>
+        <li>Возврат к прежнему уровню занимает 1–2 недели, а не месяц.</li>
+      </ul></div>
+    </details>
+
+    <details>
+      <summary>Когда искать врача, независимо от страховки</summary>
+      <div class="in"><ul>
+        <li>Онемение в области промежности и внутренней поверхности бёдер; проблемы с мочеиспусканием или недержание — приёмный покой сегодня.</li>
+        <li>Нарастающая слабость в ноге или стопе; симптомы сразу в обеих ногах — приёмный покой сегодня.</li>
+        <li>Лихорадка вместе с болью в спине; потеря веса без причины; боль, которая будит ночью и не зависит от позы; значимая травма — врач в ближайшие дни.</li>
+        <li>Эпизод дольше 10 дней, или впервые появились симптомы ниже ягодицы — очный осмотр.</li>
+      </ul></div>
+    </details>
+
+    <details id="dataBlock">
+      <summary>Перенос данных</summary>
+      <div class="in">
+        <p style="margin:0 0 8px">Журнал в чате и в скачанной копии живёт раздельно. Чтобы перенести — нажми «Выгрузить» в одной версии и вставь строку в другую.</p>
+        <textarea id="dump" aria-label="Данные журнала" style="width:100%;min-height:76px;font-family:var(--mono);font-size:11px;border:1px solid var(--rule);border-radius:2px;padding:8px;background:var(--card);color:var(--ink)"></textarea>
+        <div class="btns">
+          <button class="act ghost" id="exp">Копировать строкой</button>
+          <button class="act ghost" id="imp">Вставить строку</button>
+        </div>
+        <p style="margin:14px 0 0">Или файлом — надёжнее, если браузер не даёт хранить данные:</p>
+        <div class="btns">
+          <button class="act ghost" id="dl">Скачать файл журнала</button>
+          <button class="act ghost" id="ul">Открыть файл журнала</button>
+        </div>
+        <input type="file" id="fileIn" accept=".json,application/json,text/plain" style="display:none">
+      </div>
+    </details>
+  </section>
+
+  <div class="warn" id="warn"></div>
+
+  <div class="foot">
+    <span class="lbl" id="mode">Сохранение…</span>
+    <button id="reset">Очистить журнал</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var KEY = 'sp:faza0:v1';
+
+var QUEUE = [
+  {b:'1×8',  d:'1×6', p:'1×15 с', ch:'стартовая доза'},
+  {b:'1×10', d:'1×6', p:'1×15 с', ch:'мостик 1×8 → 1×10'},
+  {b:'1×10', d:'1×8', p:'1×15 с', ch:'dead bug 1×6 → 1×8'},
+  {b:'1×10', d:'1×8', p:'1×20 с', ch:'планка 15 → 20 с'},
+  {b:'2×8',  d:'1×8', p:'1×20 с', ch:'мостик 1×10 → 2×8'},
+  {b:'2×8',  d:'2×6', p:'1×20 с', ch:'dead bug 1×8 → 2×6'},
+  {b:'2×8',  d:'2×6', p:'2×15 с', ch:'планка 1×20 → 2×15 с'},
+  {b:'2×10', d:'2×6', p:'2×15 с', ch:'мостик 2×8 → 2×10'},
+  {b:'2×10', d:'2×8', p:'2×15 с', ch:'dead bug 2×6 → 2×8'},
+  {b:'2×10', d:'2×8', p:'2×20 с', ch:'планка 2×15 → 2×20 с — конец Фазы 0'}
+];
+
+var BASE = 1;
+
+/* хранилище: чат → браузер → память */
+var Store = (function(){
+  var mode = 'memory', mem = {};
+  try{
+    if (typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function'){
+      mode = 'claude';
+    } else {
+      window.localStorage.setItem('__probe','1');
+      window.localStorage.removeItem('__probe');
+      mode = 'local';
+    }
+  }catch(e){ mode = 'memory'; }
+
+  return {
+    mode: mode,
+    get: function(k){
+      if (mode === 'claude'){
+        return Promise.resolve(window.storage.get(k))
+          .then(function(r){ return (r && r.value) ? r.value : null; })
+          .catch(function(){ return null; });
+      }
+      if (mode === 'local'){
+        try{ return Promise.resolve(window.localStorage.getItem(k)); }catch(e){ return Promise.resolve(null); }
+      }
+      return Promise.resolve(mem[k] || null);
+    },
+    set: function(k,v){
+      if (mode === 'claude'){
+        return Promise.resolve(window.storage.set(k,v)).then(function(){ return true; }).catch(function(){ return false; });
+      }
+      if (mode === 'local'){
+        try{ window.localStorage.setItem(k,v); return Promise.resolve(true); }catch(e){ return Promise.resolve(false); }
+      }
+      mem[k] = v; return Promise.resolve(true);
+    },
+    del: function(k){
+      if (mode === 'claude'){
+        return Promise.resolve(window.storage['delete'](k)).then(function(){ return true; }).catch(function(){ return true; });
+      }
+      if (mode === 'local'){
+        try{ window.localStorage.removeItem(k); }catch(e){}
+        return Promise.resolve(true);
+      }
+      delete mem[k]; return Promise.resolve(true);
+    }
+  };
+})();
+
+function menu(step){
+  var q = QUEUE[Math.min(step, QUEUE.length - 1)];
+  return [
+    {k:'br', nm:'Дыхание лёжа', dose:'2 мин',
+     tip:'Ноги согнуты, стопы на полу. Вдох носом 4 с — расходятся нижние рёбра. Выдох 6 с. Плечи не поднимаются.'},
+    {k:'cc', nm:'Кошка-корова', dose:'1×8',
+     tip:'50% амплитуды, 3 с в каждую сторону. Разминка, а не растяжка — максимум не догонять.'},
+    {k:'gb', nm:'Ягодичный мостик', dose:q.b,
+     tip:'Пятки под коленями. 2 с вверх, удержать 2 с, 3 с вниз. До линии колено–таз–плечо и не выше. Отдых 45 с. Вершина не должна ощущаться поясницей.'},
+    {k:'db', nm:'Dead bug, касание пяткой', dose:q.d,
+     tip:'Бёдра вертикально, колени 90°. Пятка вниз 3 с, обратно 3 с. Поясница прижата к полу всю дорогу — как только отходит, это твоя амплитуда. Отдых 45 с.'},
+    {k:'sp', nm:'Боковая планка с колен', dose:q.p,
+     tip:'Локоть строго под плечом, таз подать вперёд, линия колено–таз–плечо. Отдых 30 с между сторонами.'}
+  ];
+}
+
+var S = {step:0, sessions:[]};
+var checked = {};
+var editIdx = null;
+
+function $(id){ return document.getElementById(id); }
+function toast(t){ var el=$('toast'); el.textContent=t; el.className='toast on'; setTimeout(function(){ el.className='toast'; },1900); }
+function num(v){ return (v===null || v===undefined || v==='') ? '—' : v; }
+function esc(t){ return String(t).replace(/[<>&]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]; }); }
+function val(id){ var v=$(id).value; return v==='' ? null : Math.max(0, Math.min(10, Number(v))); }
+function has(m){ return m !== null && m !== undefined; }
+function pad(n){ return (n < 10 ? '0' : '') + n; }
+function today(){ var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+
+function saveState(){ return Store.set(KEY, JSON.stringify(S)); }
+
+function load(){
+  return Store.get(KEY).then(function(raw){
+    if (raw){ try{ S = JSON.parse(raw); }catch(e){} }
+    if (!S.sessions) S.sessions = [];
+    if (typeof S.step !== 'number') S.step = 0;
+
+    if (Store.mode === 'claude'){
+      $('mode').textContent = 'Сохраняется в чате';
+    } else if (Store.mode === 'local'){
+      $('mode').textContent = 'Сохраняется в этом браузере';
+    } else {
+      $('mode').textContent = 'Без сохранения';
+      $('warn').className = 'warn on';
+      $('warn').textContent = 'Этой странице запрещено хранить данные — журнал исчезнет при закрытии. Это и есть причина, по которой утренние цифры пропадали. Открой файл через «Загрузки» в самом браузере, а не из файлового менеджера. Если не помогло: после каждого занятия жми «Скачать файл журнала» внизу, а при следующем открытии — «Открыть файл журнала».';
+      $('dataBlock').open = true;
+    }
+    render();
+  });
+}
+
+function classOf(m){
+  if (!has(m)) return 'pending';
+  if (m <= BASE) return 'clean';
+  if (m <= BASE + 1) return 'hold';
+  return 'drop';
+}
+
+function verdictFor(){
+  var done = S.sessions.filter(function(s){ return has(s.morning); });
+  if (!done.length) return {v:'—', c:'', n:'Первое занятие ещё не закрыто. Решение появится после утренней цифры.', add:false};
+  var last = done[done.length-1].morning;
+  var prev = done.length > 1 ? done[done.length-2].morning : null;
+  if (last >= 4) return {v:'ОБОСТРЕНИЕ', c:'c-drop', n:'Протокол ниже. Сначала определи причину: жизнь или само занятие — решения разные.', add:false};
+  if (last >= BASE + 2) return {v:'СНИЖАЮ', c:'c-drop', n:'Откат до 50% последней чистой дозы. Две чистые сессии — и возвращаешься обратно.', add:false};
+  if (last === BASE + 1) return {v:'ПОВТОРЯЮ', c:'c-hold', n:'Та же доза без изменений. Не откат и не пропуск — просто ещё один заход.', add:false};
+  if (prev !== null && prev <= BASE) return {
+    v:'ДОБАВЛЯЮ', c:'c-clean',
+    n:'Два чистых утра подряд. Следующее изменение: ' + (QUEUE[S.step+1] ? QUEUE[S.step+1].ch : 'Фаза 0 пройдена — жди Фазу 1'),
+    add: !!QUEUE[S.step+1]
+  };
+  return {v:'ПОВТОРЯЮ', c:'c-clean', n:'Утро чистое, но пока одно. Добавляем после второго подряд.', add:false};
+}
+
+function render(){
+  var pending = null, i;
+  for (i = 0; i < S.sessions.length; i++){
+    if (!has(S.sessions[i].morning)){ pending = S.sessions[i]; break; }
+  }
+
+  $('sessNo').textContent = S.sessions.length + 1;
+  $('phaseNote').textContent = S.step === 0
+    ? '3 занятия в неделю · стартовая доза'
+    : '3 занятия в неделю · последнее изменение: ' + QUEUE[S.step].ch;
+
+  var sc = $('scale');
+  if (pending){
+    $('checkLbl').textContent = 'Утренняя проверка — занятие №' + pending.n + ', ' + pending.date;
+    $('verdict').textContent = 'Как утро?';
+    $('verdict').className = 'verdict';
+    $('verdictNote').textContent = 'Заполни сразу после подъёма, до того как расходишься. Это единственная цифра, по которой принимается решение.';
+    sc.style.display = 'flex';
+    sc.innerHTML = '';
+    for (i = 0; i <= 10; i++){
+      (function(v){
+        var b = document.createElement('button');
+        b.textContent = v;
+        b.setAttribute('aria-label', 'Утро ' + v + ' из 10');
+        b.onclick = function(){
+          pending.morning = v;
+          saveState().then(function(){ render(); toast('Занятие №' + pending.n + ' закрыто'); });
+        };
+        sc.appendChild(b);
+      })(i);
+    }
+  } else {
+    var vd = verdictFor();
+    $('checkLbl').textContent = 'Решение на следующее занятие';
+    $('verdict').textContent = vd.v;
+    $('verdict').className = 'verdict ' + vd.c;
+    $('verdictNote').textContent = vd.n;
+    sc.style.display = vd.add ? 'flex' : 'none';
+    if (vd.add){
+      sc.innerHTML = '';
+      var ab = document.createElement('button');
+      ab.className = 'act';
+      ab.style.height = 'auto';
+      ab.textContent = 'Применить изменение';
+      ab.onclick = function(){ S.step++; saveState().then(function(){ render(); toast('Доза обновлена'); }); };
+      sc.appendChild(ab);
+    }
+  }
+
+  var strip = $('strip');
+  strip.innerHTML = '';
+  if (!S.sessions.length){
+    var d = document.createElement('div');
+    d.className = 'lbl';
+    d.textContent = 'Полоса утр заполнится после первого занятия';
+    strip.appendChild(d);
+  }
+  S.sessions.slice(-24).forEach(function(s){
+    var c = document.createElement('div');
+    c.className = 'cell ' + classOf(s.morning);
+    c.textContent = has(s.morning) ? s.morning : '?';
+    c.title = 'Занятие №' + s.n + ' · ' + s.date;
+    strip.appendChild(c);
+  });
+
+  var st = 0;
+  for (i = S.sessions.length - 1; i >= 0; i--){
+    var m = S.sessions[i].morning;
+    if (!has(m)) continue;
+    if (m <= BASE) st++; else break;
+  }
+  $('streak').textContent = st + (st >= 2 ? '  → можно добавлять' : '');
+
+  var list = $('exList');
+  list.innerHTML = '';
+  menu(S.step).forEach(function(e){
+    var li = document.createElement('li');
+    if (checked[e.k]) li.className = 'done';
+    var row = document.createElement('div'); row.className = 'row';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!checked[e.k];
+    cb.setAttribute('aria-label', e.nm);
+    cb.onchange = function(){ checked[e.k] = cb.checked; li.className = cb.checked ? 'done' : ''; };
+    var g = document.createElement('div'); g.className = 'grow';
+    g.innerHTML = '<span class="nm">' + esc(e.nm) + '</span> <span class="dose">' + esc(e.dose) + '</span>';
+    var tb = document.createElement('button'); tb.className = 'tipbtn'; tb.textContent = 'техника';
+    var tp = document.createElement('div'); tp.className = 'tip'; tp.textContent = e.tip;
+    tb.onclick = function(){
+      tp.className = (tp.className.indexOf('on') > -1) ? 'tip' : 'tip on';
+      tb.textContent = (tp.className.indexOf('on') > -1) ? 'скрыть' : 'техника';
+    };
+    g.appendChild(document.createElement('br'));
+    g.appendChild(tb);
+    g.appendChild(tp);
+    row.appendChild(cb); row.appendChild(g); li.appendChild(row); list.appendChild(li);
+  });
+
+  var box = $('logBox');
+  if (!S.sessions.length){
+    box.innerHTML = '<div class="empty">Пусто. Сохрани первое занятие — здесь появится история и полоса утр наверху.</div>';
+  } else {
+    var h = '<table><tr><th>№</th><th>Дата</th><th>Во время</th><th>Час</th><th>Утро</th><th>Стрх</th><th></th></tr>';
+    for (var j = S.sessions.length - 1; j >= 0; j--){
+      var s = S.sessions[j];
+      var cls = classOf(s.morning);
+      var col = cls === 'clean' ? 'var(--clean)' : cls === 'hold' ? 'var(--hold)' : cls === 'drop' ? 'var(--drop)' : 'var(--rule)';
+      var cell;
+      if (editIdx === j){
+        cell = '<div class="inline-scale">';
+        for (var v = 0; v <= 10; v++) cell += '<button class="mini" data-set="' + j + ':' + v + '">' + v + '</button>';
+        cell += '</div>';
+      } else if (has(s.morning)){
+        cell = '<button class="mini" data-edit="' + j + '"><span class="dot" style="background:' + col + '"></span>' + s.morning + '</button>';
+      } else {
+        cell = '<button class="mini ask" data-edit="' + j + '">вписать</button>';
+      }
+      h += '<tr><td class="n">' + s.n + '</td><td>' + esc(s.date) + '</td>' +
+           '<td>' + num(s.during) + '</td><td>' + num(s.after) + '</td>' +
+           '<td>' + cell + '</td>' +
+           '<td class="n">' + num(s.fear) + '</td>' +
+           '<td style="text-align:right"><button class="mini" data-copy="' + j + '">копия</button></td></tr>';
+      h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.dose) + (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
+    }
+    box.innerHTML = h + '</table>';
+
+    Array.prototype.forEach.call(box.querySelectorAll('[data-edit]'), function(b){
+      b.onclick = function(){ editIdx = Number(b.getAttribute('data-edit')); render(); };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-set]'), function(b){
+      b.onclick = function(){
+        var p = b.getAttribute('data-set').split(':');
+        S.sessions[Number(p[0])].morning = Number(p[1]);
+        editIdx = null;
+        saveState().then(function(){ render(); toast('Утро записано'); });
+      };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-copy]'), function(b){
+      b.onclick = function(){ copySession(Number(b.getAttribute('data-copy'))); };
+    });
+  }
+}
+
+function copySession(idx){
+  var s = S.sessions[idx];
+  if (!s) return;
+  var vd = verdictFor();
+  var txt =
+    'Занятие №' + s.n + ' — ' + s.date + '\n' +
+    'Доза: ' + s.dose + '\n' +
+    'Во время: ' + num(s.during) + '/10\n' +
+    'Через час: ' + num(s.after) + '/10\n' +
+    'Следующее утро: ' + (has(s.morning) ? s.morning : 'ещё не заполнено') + '\n' +
+    'Вне тренировки: ' + (s.note || '—') + '\n' +
+    'Настороженность: ' + num(s.fear) + '/10\n' +
+    'Чистых утр подряд: ' + $('streak').textContent + '\n' +
+    'Вердикт журнала: ' + vd.v;
+  copyText(txt, 'Занятие №' + s.n + ' скопировано');
+}
+
+function copyText(txt, ok){
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); toast(ok); }
+    catch(e){ toast('Скопируй вручную из поля'); }
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast(ok); }).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
+$('fDate').value = today();
+
+$('save').onclick = function(){
+  var q = QUEUE[S.step];
+  S.sessions.push({
+    n: S.sessions.length + 1,
+    date: $('fDate').value || today(),
+    dose: 'мост ' + q.b + ' · DB ' + q.d + ' · планка ' + q.p,
+    during: val('fDuring'),
+    after: val('fAfter'),
+    fear: val('fFear'),
+    note: $('fNote').value.replace(/^\s+|\s+$/g, ''),
+    morning: null
+  });
+  saveState().then(function(){
+    ['fDuring','fAfter','fFear','fNote'].forEach(function(i){ $(i).value = ''; });
+    checked = {};
+    render();
+    window.scrollTo(0, 0);
+    toast('Сохранено. Утреннюю цифру — завтра');
+  });
+};
+
+$('copy').onclick = function(){
+  if (!S.sessions.length){ toast('Сначала сохрани занятие'); return; }
+  copySession(S.sessions.length - 1);
+};
+
+$('exp').onclick = function(){
+  var raw = JSON.stringify(S);
+  $('dump').value = raw;
+  copyText(raw, 'Журнал скопирован');
+};
+
+$('imp').onclick = function(){
+  var raw = $('dump').value.replace(/^\s+|\s+$/g, '');
+  if (!raw){ toast('Вставь строку в поле'); return; }
+  try{
+    applyState(JSON.parse(raw)).then(function(){ toast('Журнал загружен'); });
+  }catch(e){ toast('Строка не распознана'); }
+};
+
+function applyState(o){
+  if (!o || Object.prototype.toString.call(o.sessions) !== '[object Array]') throw new Error('bad');
+  S = {step: (typeof o.step === 'number' ? o.step : 0), sessions: o.sessions};
+  editIdx = null;
+  return saveState().then(function(){ render(); });
+}
+
+$('dl').onclick = function(){
+  try{
+    var blob = new Blob([JSON.stringify(S)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'faza-0-zhurnal-' + today() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
+    toast('Файл journal сохранён в «Загрузки»');
+  }catch(e){ toast('Не вышло — копируй строкой'); }
+};
+
+$('ul').onclick = function(){ $('fileIn').click(); };
+
+$('fileIn').onchange = function(){
+  var f = $('fileIn').files && $('fileIn').files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{ applyState(JSON.parse(String(r.result))).then(function(){ toast('Журнал загружен'); }); }
+    catch(e){ toast('Файл не распознан'); }
+  };
+  r.onerror = function(){ toast('Не удалось прочитать файл'); };
+  r.readAsText(f, 'utf-8');
+  $('fileIn').value = '';
+};
+
+$('reset').onclick = function(){
+  if (!confirm('Удалить все занятия и вернуть стартовую дозу? Отменить нельзя.')) return;
+  S = {step:0, sessions:[]};
+  checked = {};
+  Store.del(KEY).then(function(){ render(); toast('Журнал очищен'); });
+};
+
+load();
+
+/* Офлайн-режим. Работает только на https (GitHub Pages), в чате молча пропускается. */
+try{
+  if ('serviceWorker' in navigator && location.protocol === 'https:'){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+}catch(e){}
+</script>
+</body>
+</html>
