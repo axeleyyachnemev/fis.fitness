@@ -92,6 +92,7 @@
   .cell{flex:none;width:26px;height:34px;border-radius:1px;display:flex;align-items:center;justify-content:center;
     font-family:var(--mono);font-size:12px;font-weight:600;color:var(--onink);background:var(--rule)}
   .cell.clean{background:var(--clean)} .cell.hold{background:var(--hold)} .cell.drop{background:var(--drop)}
+  .cell.skip{background:transparent;border:1px dashed var(--soft);color:var(--soft)}
   .cell.pending{background:var(--card);border:1px dashed var(--soft);color:var(--soft)}
   .streak{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 16px 12px;background:var(--tint)}
   .streak b{font-family:var(--mono);font-size:13px;text-align:right}
@@ -140,6 +141,26 @@
   button.mini:hover{border-color:var(--ink)}
   button.mini:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   button.mini.ask{color:var(--soft);border-style:dashed}
+  .opts{display:grid;grid-template-columns:1fr;gap:7px}
+  @media (min-width:520px){.opts{grid-template-columns:1fr 1fr}}
+  .opts button{
+    display:flex;align-items:baseline;gap:9px;text-align:left;
+    border:1px solid var(--rule);background:var(--card);color:var(--ink);
+    border-radius:2px;padding:11px 12px;cursor:pointer;font-family:var(--sans);font-size:14px;
+  }
+  .opts button:hover{border-color:var(--ink)}
+  .opts button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .opts button i{font-family:var(--mono);font-style:normal;font-size:12px;color:var(--soft);flex:none;min-width:24px}
+  .state{border-left:3px solid var(--rule);padding:2px 0 2px 12px;margin-bottom:12px}
+  .state .big{font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+  .state p{margin:5px 0 0;font-size:14px;color:var(--soft)}
+  .state.go{border-color:var(--clean)} .state.go .big{color:var(--clean)}
+  .state.hold{border-color:var(--hold)} .state.hold .big{color:var(--hold)}
+  .state.stop{border-color:var(--drop)} .state.stop .big{color:var(--drop)}
+  .muted{opacity:.4;pointer-events:none}
+  .linkbtn{background:none;border:0;color:var(--accent);font-family:var(--mono);font-size:10px;
+    letter-spacing:.12em;text-transform:uppercase;cursor:pointer;text-decoration:underline;padding:4px 0}
+  button.mini.on{background:var(--ink);color:var(--onink);border-color:var(--ink)}
   td.sub{font-family:var(--sans);font-size:12px;padding-bottom:10px}
   .inline-scale{display:flex;gap:3px;flex-wrap:wrap}
   .inline-scale button{min-width:28px;padding:5px 0;text-align:center}
@@ -195,9 +216,18 @@
       <span class="lbl">Чистых утр подряд</span>
       <b id="streak">0</b>
     </div>
+    <div class="streak" style="border-top:1px solid var(--rule-soft);padding-top:11px">
+      <span class="lbl">Базовый уровень<br><span style="text-transform:none;letter-spacing:0">утро на этой цифре и ниже — чистое</span></span>
+      <span class="inline-scale" id="baseRow"></span>
+    </div>
   </section>
 
   <section class="card">
+    <h2>Утро сегодня — перед занятием</h2>
+    <div id="gate"></div>
+  </section>
+
+  <section class="card" id="doseCard">
     <h2>Сегодняшняя доза</h2>
     <ol class="ex" id="exList"></ol>
     <div style="margin-top:12px;font-size:13px;color:var(--soft)">
@@ -205,7 +235,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="reportCard">
     <h2>Отчёт за занятие</h2>
     <div class="fields">
       <div class="f"><label class="lbl" for="fDate">Дата</label><input id="fDate" type="date"></div>
@@ -241,6 +271,8 @@
         <tr><td>Растёт внутри подхода</td><td>закончить подход, следующий не делать</td></tr>
         <tr><td>Через час</td><td>≤2/10, к базовому за 60 мин</td></tr>
         <tr><td>Следующее утро</td><td>единственная цифра, по которой принимается решение</td></tr>
+        <tr><td><b>Утренний тест</b></td><td>сразу после подъёма, до душа и кофе: 10 шагов по комнате · один наклон как за шнурком · одно вставание со стула. Максимум из трёх и есть цифра дня</td></tr>
+        <tr><td>Базовый уровень</td><td>фон в спокойный день. Значение имеет разница между утром и фоном, а не сама цифра</td></tr>
         <tr><td>4/10 и выше, или ниже ягодицы</td><td>протокол обострения</td></tr>
       </table></div>
     </details>
@@ -333,8 +365,6 @@ var QUEUE = [
   {b:'2×10', d:'2×8', p:'2×20 с', ch:'планка 2×15 → 2×20 с — конец Фазы 0'}
 ];
 
-var BASE = 1;
-
 /* хранилище: чат → браузер → память */
 var Store = (function(){
   var mode = 'memory', mem = {};
@@ -399,7 +429,7 @@ function menu(step){
   ];
 }
 
-var S = {step:0, sessions:[]};
+var S = {step:0, sessions:[], base:0, gate:null};
 var checked = {};
 var editIdx = null;
 
@@ -419,6 +449,7 @@ function load(){
     if (raw){ try{ S = JSON.parse(raw); }catch(e){} }
     if (!S.sessions) S.sessions = [];
     if (typeof S.step !== 'number') S.step = 0;
+    if (typeof S.base !== 'number') S.base = 0;
 
     if (Store.mode === 'claude'){
       $('mode').textContent = 'Сохраняется в чате';
@@ -436,20 +467,27 @@ function load(){
 
 function classOf(m){
   if (!has(m)) return 'pending';
-  if (m <= BASE) return 'clean';
-  if (m <= BASE + 1) return 'hold';
+  if (m <= S.base) return 'clean';
+  if (m <= S.base + 1) return 'hold';
   return 'drop';
 }
 
+function readingOf(s){ return s.type === 'skip' ? s.pre : s.morning; }
+
 function verdictFor(){
-  var done = S.sessions.filter(function(s){ return has(s.morning); });
-  if (!done.length) return {v:'—', c:'', n:'Первое занятие ещё не закрыто. Решение появится после утренней цифры.', add:false};
+  var lastEntry = S.sessions.length ? S.sessions[S.sessions.length-1] : null;
+  if (lastEntry && lastEntry.type === 'skip'){
+    return {v:'ПАУЗА', c:'c-hold', add:false,
+      n:'Занятие пропущено из-за утра. Следующее — в той же дозе, когда утро вернётся к обычному. Если причина была в самом занятии, а не в жизни — заходи на 50%.'};
+  }
+  var done = S.sessions.filter(function(s){ return s.type !== 'skip' && has(s.morning); });
+  if (!done.length) return {v:'—', c:'', n:'Первое занятие ещё не закрыто. Решение появится после утренней проверки.', add:false};
   var last = done[done.length-1].morning;
   var prev = done.length > 1 ? done[done.length-2].morning : null;
   if (last >= 4) return {v:'ОБОСТРЕНИЕ', c:'c-drop', n:'Протокол ниже. Сначала определи причину: жизнь или само занятие — решения разные.', add:false};
-  if (last >= BASE + 2) return {v:'СНИЖАЮ', c:'c-drop', n:'Откат до 50% последней чистой дозы. Две чистые сессии — и возвращаешься обратно.', add:false};
-  if (last === BASE + 1) return {v:'ПОВТОРЯЮ', c:'c-hold', n:'Та же доза без изменений. Не откат и не пропуск — просто ещё один заход.', add:false};
-  if (prev !== null && prev <= BASE) return {
+  if (last >= S.base + 2) return {v:'СНИЖАЮ', c:'c-drop', n:'Откат до 50% последней чистой дозы. Две чистые сессии — и возвращаешься обратно.', add:false};
+  if (last === S.base + 1) return {v:'ПОВТОРЯЮ', c:'c-hold', n:'Та же доза без изменений. Не откат и не пропуск — просто ещё один заход.', add:false};
+  if (prev !== null && prev <= S.base) return {
     v:'ДОБАВЛЯЮ', c:'c-clean',
     n:'Два чистых утра подряд. Следующее изменение: ' + (QUEUE[S.step+1] ? QUEUE[S.step+1].ch : 'Фаза 0 пройдена — жди Фазу 1'),
     add: !!QUEUE[S.step+1]
@@ -457,10 +495,117 @@ function verdictFor(){
   return {v:'ПОВТОРЯЮ', c:'c-clean', n:'Утро чистое, но пока одно. Добавляем после второго подряд.', add:false};
 }
 
+var LEVELS = [
+  {v:1, t:'Как всегда, ничего нового',        n:'0–1'},
+  {v:2, t:'Чуть заметнее, но не мешает',      n:'2'},
+  {v:3, t:'Явно заметнее при обычных движениях', n:'3'},
+  {v:4, t:'Мешает двигаться',                 n:'4+'}
+];
+
+function optionButtons(box, onPick, exact){
+  box.innerHTML = '';
+  var grid = document.createElement('div');
+  grid.className = 'opts';
+  LEVELS.forEach(function(L){
+    var b = document.createElement('button');
+    b.innerHTML = '<i>' + L.n + '</i><span>' + L.t + '</span>';
+    b.setAttribute('aria-label', L.t);
+    b.onclick = function(){ onPick(L.v); };
+    grid.appendChild(b);
+  });
+  box.appendChild(grid);
+  if (exact){
+    var lk = document.createElement('button');
+    lk.className = 'linkbtn';
+    lk.textContent = 'точная цифра';
+    var row = document.createElement('div');
+    row.className = 'inline-scale';
+    row.style.display = 'none';
+    row.style.marginTop = '8px';
+    for (var i = 0; i <= 10; i++){
+      (function(v){
+        var b = document.createElement('button');
+        b.className = 'mini';
+        b.textContent = v;
+        b.onclick = function(){ onPick(v); };
+        row.appendChild(b);
+      })(i);
+    }
+    lk.onclick = function(){ row.style.display = row.style.display === 'none' ? 'flex' : 'none'; };
+    box.appendChild(lk);
+    box.appendChild(row);
+  }
+}
+
+function renderGate(){
+  var box = $('gate');
+  var gv = (S.gate && S.gate.date === today()) ? S.gate.value : null;
+  var canTrain = false;
+
+  if (gv === null || gv === undefined){
+    box.innerHTML = '<p style="margin:0 0 11px;font-size:14px;color:var(--soft)">' +
+      'Сделай три движения — 10 шагов, наклон как за шнурком, встань со стула. Худшее из них и есть ответ.</p>';
+    var host = document.createElement('div');
+    box.appendChild(host);
+    optionButtons(host, function(v){
+      S.gate = {date: today(), value: v};
+      saveState().then(function(){ render(); });
+    }, true);
+  } else {
+    var st = document.createElement('div');
+    if (gv <= S.base + 1){
+      canTrain = true;
+      st.className = 'state go';
+      st.innerHTML = '<div class="big">Занятие идёт</div><p>Утро в норме. Доза ниже — без изменений.</p>';
+    } else if (gv === S.base + 2){
+      st.className = 'state hold';
+      st.innerHTML = '<div class="big">Сегодня только ходьба</div>' +
+        '<p>Силовое отменяется. Ходьба вдвое меньше обычного, короткими кусками. Дыхание 2×2 мин и кошка-корова 1×6 на малой амплитуде — можно.</p>';
+    } else {
+      st.className = 'state stop';
+      st.innerHTML = '<div class="big">Протокол обострения</div>' +
+        '<p>Силовое стоп. Открой раздел «Обострение — первые 72 часа» ниже и начни с определения причины: жизнь или само занятие.</p>';
+    }
+    box.innerHTML = '';
+    box.appendChild(st);
+
+    var bar = document.createElement('div');
+    bar.className = 'btns';
+    if (!canTrain){
+      var sk = document.createElement('button');
+      sk.className = 'act';
+      sk.textContent = 'Записать пропуск';
+      sk.onclick = function(){
+        S.sessions.push({
+          n: S.sessions.length + 1,
+          date: today(),
+          type: 'skip',
+          pre: gv,
+          dose: 'пропуск — силовое отменено',
+          during: null, after: null, fear: null,
+          note: '', morning: null
+        });
+        S.gate = null;
+        saveState().then(function(){ render(); toast('Пропуск записан'); });
+      };
+      bar.appendChild(sk);
+    }
+    var ch = document.createElement('button');
+    ch.className = 'act ghost';
+    ch.textContent = 'Изменить';
+    ch.onclick = function(){ S.gate = null; saveState().then(function(){ render(); }); };
+    bar.appendChild(ch);
+    box.appendChild(bar);
+  }
+
+  $('doseCard').className = 'card' + (canTrain ? '' : ' muted');
+  $('reportCard').className = 'card' + (canTrain ? '' : ' muted');
+}
+
 function render(){
   var pending = null, i;
   for (i = 0; i < S.sessions.length; i++){
-    if (!has(S.sessions[i].morning)){ pending = S.sessions[i]; break; }
+    if (S.sessions[i].type !== 'skip' && !has(S.sessions[i].morning)){ pending = S.sessions[i]; break; }
   }
 
   $('sessNo').textContent = S.sessions.length + 1;
@@ -470,24 +615,15 @@ function render(){
 
   var sc = $('scale');
   if (pending){
-    $('checkLbl').textContent = 'Утренняя проверка — занятие №' + pending.n + ', ' + pending.date;
+    $('checkLbl').textContent = 'Утро после занятия №' + pending.n + ' (' + pending.date + ')';
     $('verdict').textContent = 'Как утро?';
     $('verdict').className = 'verdict';
-    $('verdictNote').textContent = 'Заполни сразу после подъёма, до того как расходишься. Это единственная цифра, по которой принимается решение.';
-    sc.style.display = 'flex';
-    sc.innerHTML = '';
-    for (i = 0; i <= 10; i++){
-      (function(v){
-        var b = document.createElement('button');
-        b.textContent = v;
-        b.setAttribute('aria-label', 'Утро ' + v + ' из 10');
-        b.onclick = function(){
-          pending.morning = v;
-          saveState().then(function(){ render(); toast('Занятие №' + pending.n + ' закрыто'); });
-        };
-        sc.appendChild(b);
-      })(i);
-    }
+    $('verdictNote').textContent = 'Заполни сразу после подъёма, до того как расходишься. Это единственный ответ, по которому меняется доза.';
+    sc.style.display = 'block';
+    optionButtons(sc, function(v){
+      pending.morning = v;
+      saveState().then(function(){ render(); toast('Занятие №' + pending.n + ' закрыто'); });
+    }, true);
   } else {
     var vd = verdictFor();
     $('checkLbl').textContent = 'Решение на следующее занятие';
@@ -515,20 +651,35 @@ function render(){
     strip.appendChild(d);
   }
   S.sessions.slice(-24).forEach(function(s){
+    var r = readingOf(s);
     var c = document.createElement('div');
-    c.className = 'cell ' + classOf(s.morning);
-    c.textContent = has(s.morning) ? s.morning : '?';
-    c.title = 'Занятие №' + s.n + ' · ' + s.date;
+    c.className = 'cell ' + classOf(r) + (s.type === 'skip' ? ' skip' : '');
+    c.textContent = has(r) ? r : '?';
+    c.title = (s.type === 'skip' ? 'Пропуск' : 'Занятие №' + s.n) + ' · ' + s.date;
     strip.appendChild(c);
   });
 
   var st = 0;
   for (i = S.sessions.length - 1; i >= 0; i--){
-    var m = S.sessions[i].morning;
+    var m = readingOf(S.sessions[i]);
     if (!has(m)) continue;
-    if (m <= BASE) st++; else break;
+    if (m <= S.base && S.sessions[i].type !== 'skip') st++; else break;
   }
   $('streak').textContent = st + (st >= 2 ? '  → можно добавлять' : '');
+
+  var br = $('baseRow');
+  br.innerHTML = '';
+  [0,1,2].forEach(function(v){
+    var bb = document.createElement('button');
+    bb.className = 'mini' + (S.base === v ? ' on' : '');
+    bb.textContent = v;
+    bb.setAttribute('aria-label', 'Базовый уровень ' + v);
+    bb.onclick = function(){
+      S.base = v;
+      saveState().then(function(){ render(); toast('Базовый уровень: ' + v); });
+    };
+    br.appendChild(bb);
+  });
 
   var list = $('exList');
   list.innerHTML = '';
@@ -559,13 +710,15 @@ function render(){
   if (!S.sessions.length){
     box.innerHTML = '<div class="empty">Пусто. Сохрани первое занятие — здесь появится история и полоса утр наверху.</div>';
   } else {
-    var h = '<table><tr><th>№</th><th>Дата</th><th>Во время</th><th>Час</th><th>Утро</th><th>Стрх</th><th></th></tr>';
+    var h = '<table><tr><th>№</th><th>Дата</th><th>До</th><th>Во время</th><th>Час</th><th>Утро</th><th></th></tr>';
     for (var j = S.sessions.length - 1; j >= 0; j--){
       var s = S.sessions[j];
       var cls = classOf(s.morning);
       var col = cls === 'clean' ? 'var(--clean)' : cls === 'hold' ? 'var(--hold)' : cls === 'drop' ? 'var(--drop)' : 'var(--rule)';
       var cell;
-      if (editIdx === j){
+      if (s.type === 'skip'){
+        cell = '<span class="n">—</span>';
+      } else if (editIdx === j){
         cell = '<div class="inline-scale">';
         for (var v = 0; v <= 10; v++) cell += '<button class="mini" data-set="' + j + ':' + v + '">' + v + '</button>';
         cell += '</div>';
@@ -574,12 +727,14 @@ function render(){
       } else {
         cell = '<button class="mini ask" data-edit="' + j + '">вписать</button>';
       }
-      h += '<tr><td class="n">' + s.n + '</td><td>' + esc(s.date) + '</td>' +
+      h += '<tr><td class="n">' + (s.type === 'skip' ? '·' : s.n) + '</td><td>' + esc(s.date) + '</td>' +
+           '<td class="n">' + num(s.pre) + '</td>' +
            '<td>' + num(s.during) + '</td><td>' + num(s.after) + '</td>' +
            '<td>' + cell + '</td>' +
-           '<td class="n">' + num(s.fear) + '</td>' +
            '<td style="text-align:right"><button class="mini" data-copy="' + j + '">копия</button></td></tr>';
-      h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.dose) + (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
+      h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.dose) +
+           (has(s.fear) ? ' · настороженность ' + s.fear : '') +
+           (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
     }
     box.innerHTML = h + '</table>';
 
@@ -598,14 +753,21 @@ function render(){
       b.onclick = function(){ copySession(Number(b.getAttribute('data-copy'))); };
     });
   }
+
+  renderGate();
 }
 
 function copySession(idx){
   var s = S.sessions[idx];
   if (!s) return;
   var vd = verdictFor();
+  if (s.type === 'skip'){
+    copyText('Пропуск — ' + s.date + '\nУтро перед занятием: ' + num(s.pre) + '/10\nСиловое отменено, только ходьба', 'Пропуск скопирован');
+    return;
+  }
   var txt =
     'Занятие №' + s.n + ' — ' + s.date + '\n' +
+    'Утро перед занятием: ' + num(s.pre) + '/10\n' +
     'Доза: ' + s.dose + '\n' +
     'Во время: ' + num(s.during) + '/10\n' +
     'Через час: ' + num(s.after) + '/10\n' +
@@ -640,9 +802,12 @@ $('fDate').value = today();
 
 $('save').onclick = function(){
   var q = QUEUE[S.step];
+  var gv = (S.gate && S.gate.date === today()) ? S.gate.value : null;
   S.sessions.push({
     n: S.sessions.length + 1,
     date: $('fDate').value || today(),
+    type: 'session',
+    pre: gv,
     dose: 'мост ' + q.b + ' · DB ' + q.d + ' · планка ' + q.p,
     during: val('fDuring'),
     after: val('fAfter'),
@@ -650,12 +815,13 @@ $('save').onclick = function(){
     note: $('fNote').value.replace(/^\s+|\s+$/g, ''),
     morning: null
   });
+  S.gate = null;
   saveState().then(function(){
     ['fDuring','fAfter','fFear','fNote'].forEach(function(i){ $(i).value = ''; });
     checked = {};
     render();
     window.scrollTo(0, 0);
-    toast('Сохранено. Утреннюю цифру — завтра');
+    toast('Сохранено. Утреннюю проверку — завтра');
   });
 };
 
@@ -680,7 +846,7 @@ $('imp').onclick = function(){
 
 function applyState(o){
   if (!o || Object.prototype.toString.call(o.sessions) !== '[object Array]') throw new Error('bad');
-  S = {step: (typeof o.step === 'number' ? o.step : 0), sessions: o.sessions};
+  S = {step: (typeof o.step === 'number' ? o.step : 0), sessions: o.sessions, base: (typeof o.base === 'number' ? o.base : 0), gate: o.gate || null};
   editIdx = null;
   return saveState().then(function(){ render(); });
 }
@@ -717,7 +883,7 @@ $('fileIn').onchange = function(){
 
 $('reset').onclick = function(){
   if (!confirm('Удалить все занятия и вернуть стартовую дозу? Отменить нельзя.')) return;
-  S = {step:0, sessions:[]};
+  S = {step:0, sessions:[], base:0, gate:null};
   checked = {};
   Store.del(KEY).then(function(){ render(); toast('Журнал очищен'); });
 };
