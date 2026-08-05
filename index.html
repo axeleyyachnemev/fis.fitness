@@ -216,10 +216,6 @@
       <span class="lbl">Чистых утр подряд</span>
       <b id="streak">0</b>
     </div>
-    <div class="streak" style="border-top:1px solid var(--rule-soft);padding-top:11px">
-      <span class="lbl">Базовый уровень<br><span style="text-transform:none;letter-spacing:0">утро на этой цифре и ниже — чистое</span></span>
-      <span class="inline-scale" id="baseRow"></span>
-    </div>
   </section>
 
   <section class="card">
@@ -262,6 +258,11 @@
   </section>
 
   <section class="card">
+    <h2>Настройка · твой обычный фон</h2>
+    <div id="baseCard"></div>
+  </section>
+
+  <section class="card">
     <h2>Кратко</h2>
 
     <details>
@@ -272,7 +273,7 @@
         <tr><td>Через час</td><td>≤2/10, к базовому за 60 мин</td></tr>
         <tr><td>Следующее утро</td><td>единственная цифра, по которой принимается решение</td></tr>
         <tr><td><b>Утренний тест</b></td><td>сразу после подъёма, до душа и кофе: 10 шагов по комнате · один наклон как за шнурком · одно вставание со стула. Максимум из трёх и есть цифра дня</td></tr>
-        <tr><td>Базовый уровень</td><td>фон в спокойный день. Значение имеет разница между утром и фоном, а не сама цифра</td></tr>
+        <tr><td>Базовый уровень</td><td>твой фон в спокойный день — настраивается отдельным блоком выше. Решение принимает разница между утром и фоном, а не сама цифра</td></tr>
         <tr><td>4/10 и выше, или ниже ягодицы</td><td>протокол обострения</td></tr>
       </table></div>
     </details>
@@ -667,18 +668,48 @@ function render(){
   }
   $('streak').textContent = st + (st >= 2 ? '  → можно добавлять' : '');
 
-  var br = $('baseRow');
-  br.innerHTML = '';
-  [0,1,2].forEach(function(v){
+  var br = $('baseCard');
+  var BASEOPT = [
+    {v:0, t:'Ноль — совсем ничего',        n:'0'},
+    {v:1, t:'Еле уловимо, на грани',       n:'1'},
+    {v:2, t:'Заметный постоянный фон',     n:'2'}
+  ];
+  var html =
+    '<p style="margin:0 0 4px;font-size:14px">Это не оценка сегодняшнего дня. Это точка отсчёта — ставится один раз и почти никогда не меняется.</p>' +
+    '<p style="margin:0 0 12px;font-size:14px;color:var(--soft)">Утренняя цифра сама по себе ничего не значит. Значение имеет только её отклонение от твоего фона. У человека с фоном 2 утро на двойке — обычный день. У тебя фон 1, поэтому та же двойка это «плюс один».</p>' +
+    '<div class="lbl" style="margin-bottom:7px">Что ты чувствуешь в обычный день, когда ничего не делал</div>' +
+    '<div class="opts" id="baseOpts"></div>';
+  br.innerHTML = html;
+  var bo = br.querySelector('#baseOpts');
+  BASEOPT.forEach(function(o){
     var bb = document.createElement('button');
-    bb.className = 'mini' + (S.base === v ? ' on' : '');
-    bb.textContent = v;
-    bb.setAttribute('aria-label', 'Базовый уровень ' + v);
+    if (S.base === o.v) bb.style.borderColor = 'var(--accent)';
+    bb.innerHTML = '<i>' + o.n + '</i><span>' + o.t + (S.base === o.v ? ' ✓' : '') + '</span>';
+    bb.setAttribute('aria-label', o.t);
     bb.onclick = function(){
-      S.base = v;
-      saveState().then(function(){ render(); toast('Базовый уровень: ' + v); });
+      S.base = o.v;
+      saveState().then(function(){ render(); toast('Фон: ' + o.n); });
     };
-    br.appendChild(bb);
+    bo.appendChild(bb);
+  });
+  var tbl = '<div class="lbl" style="margin:16px 0 7px">Как при фоне ' + S.base + ' читается утренний ответ</div>' +
+            '<table style="font-family:var(--sans);font-size:13px">';
+  LEVELS.forEach(function(L){
+    var res, cl;
+    if (L.v <= S.base){ res = 'чисто, счётчик растёт'; cl = 'var(--clean)'; }
+    else if (L.v === S.base + 1){ res = 'повторяю ту же дозу'; cl = 'var(--hold)'; }
+    else if (L.v >= 4){ res = 'протокол обострения'; cl = 'var(--drop)'; }
+    else { res = 'снижаю до 50%'; cl = 'var(--drop)'; }
+    tbl += '<tr><td style="width:52%">' + L.t + '</td>' +
+           '<td style="color:' + cl + '">' + res + '</td></tr>';
+  });
+  br.innerHTML += tbl + '</table>' +
+    '<p style="margin:12px 0 0;font-size:13px;color:var(--soft)">Менять эту настройку стоит только если фон реально сместился — например, через месяц каждое утро стабильно ноль. Тогда порог опускается, и требования к чистоте становятся строже.</p>';
+  Array.prototype.forEach.call(br.querySelectorAll('#baseOpts button'), function(bb, ix){
+    bb.onclick = function(){
+      S.base = BASEOPT[ix].v;
+      saveState().then(function(){ render(); toast('Фон: ' + BASEOPT[ix].n); });
+    };
   });
 
   var list = $('exList');
