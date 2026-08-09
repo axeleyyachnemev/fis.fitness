@@ -184,6 +184,18 @@
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--onink);
     font-family:var(--mono);font-size:12px;padding:10px 16px;border-radius:2px;opacity:0;pointer-events:none;
     transition:opacity .2s;z-index:9}
+  .now{border:2px solid var(--ink);background:var(--card);border-radius:2px;padding:18px 16px}
+  .now .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--soft)}
+  .now h3{margin:6px 0 0;font-size:23px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+  .now p{margin:8px 0 0;font-size:14px;color:var(--soft);max-width:52ch}
+  .now .go h3{color:var(--clean)} .now .hold h3{color:var(--hold)} .now .stop h3{color:var(--drop)}
+  .now .why{margin-top:12px;padding-top:11px;border-top:1px solid var(--rule-soft);font-size:13px;color:var(--soft)}
+  .howto summary{padding:0}
+  .howto{padding:16px}
+  ol.steps{margin:8px 0 0;padding-left:20px;font-size:14px}
+  ol.steps li{margin:8px 0}
+  .vline{display:flex;gap:10px;align-items:baseline;font-size:14px}
+  .vline b{font-family:var(--mono);font-size:13px;letter-spacing:.06em;flex:none}
   .toast.on{opacity:1}
   @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
@@ -204,27 +216,33 @@
     </div>
   </div>
 
-  <section class="check">
-    <div class="check-body">
-      <div class="lbl" id="checkLbl">Утренняя проверка</div>
-      <div class="verdict" id="verdict">—</div>
-      <div class="verdict-note" id="verdictNote">Загрузка…</div>
-      <div class="scale" id="scale" style="display:none"></div>
+  <section class="now" id="nowCard"></section>
+
+  <details class="card howto" id="howto">
+    <summary>Как это работает — четыре шага</summary>
+    <div class="in">
+      <ol class="steps">
+        <li><b>Утром в день занятия</b> отвечаешь, можно ли сегодня заниматься. Этот ответ решает только одно: делать сегодня силовое или ограничиться ходьбой. На нагрузку он не влияет.</li>
+        <li><b>Делаешь занятие</b> по списку, заполняешь отчёт, жмёшь «Сохранить занятие».</li>
+        <li><b>На следующее утро</b> отвечаешь, как спина перенесла вчерашнее занятие. <b>Это единственный ответ, который меняет нагрузку.</b> Раньше чем через сутки он ничего не покажет, поэтому приложение и не спрашивает его в тот же день.</li>
+        <li><b>Приложение решает само</b>: усложнить, повторить ту же дозу или снизить. Тебе остаётся сделать то, что написано наверху.</li>
+      </ol>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)">Два утренних вопроса легко перепутать. Разница простая: первый спрашивает «что со мной сейчас», второй — «что сделало вчерашнее занятие». Приложение всегда показывает только один из них, тот, который сегодня уместен.</p>
     </div>
+  </details>
+
+  <section class="card">
+    <h2>История утр</h2>
     <div class="strip" id="strip"></div>
     <div class="streak">
       <span class="lbl">Чистых утр подряд</span>
       <b id="streak">0</b>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>Утро сегодня — перед занятием</h2>
-    <div id="gate"></div>
+    <div id="verdictLine" style="margin-top:12px"></div>
   </section>
 
   <section class="card" id="doseCard">
-    <h2>Сегодняшняя доза</h2>
+    <h2>Занятие · что делать сегодня</h2>
     <ol class="ex" id="exList"></ol>
     <div style="margin-top:12px;font-size:13px;color:var(--soft)">
       Плюс ходьба отдельно от занятия: 7 000–10 000 шагов.
@@ -232,7 +250,7 @@
   </section>
 
   <section class="card" id="reportCard">
-    <h2>Отчёт за занятие</h2>
+    <h2>Отчёт · заполнить сразу после занятия</h2>
     <div class="fields">
       <div class="f"><label class="lbl" for="fDate">Дата</label><input id="fDate" type="date"></div>
       <div class="f"><label class="lbl" for="fDuring">Во время 0–10</label><input id="fDuring" type="number" min="0" max="10" inputmode="numeric"></div>
@@ -248,7 +266,7 @@
       <button class="act ghost" id="copy">Скопировать для чата</button>
     </div>
     <div style="margin-top:10px;font-size:13px;color:var(--soft)">
-      Утренняя цифра заполняется завтра, наверху. До неё занятие считается незакрытым.
+      После сохранения занятие ждёт утреннюю проверку. Она откроется наверху завтра утром — сегодня её не будет.
     </div>
   </section>
 
@@ -530,69 +548,135 @@ function optionButtons(box, onPick){
   box.appendChild(grid);
 }
 
-function renderGate(){
-  var box = $('gate');
-  var gv = (S.gate && S.gate.date === today()) ? S.gate.value : null;
-  var canTrain = false;
+function situation(){
+  var t = today(), i, pending = null;
+  for (i = 0; i < S.sessions.length; i++){
+    if (S.sessions[i].type !== 'skip' && !has(S.sessions[i].morning)){ pending = S.sessions[i]; break; }
+  }
+  var gv = (S.gate && S.gate.date === t) ? S.gate.value : null;
+  if (pending && pending.date < t) return {k:'morning', s:pending};
+  if (pending) return {k:'wait', s:pending};
+  if (gv === null || gv === undefined) return {k:'gate'};
+  if (gv <= 1) return {k:'train', gv:gv};
+  if (gv === 2) return {k:'walk', gv:gv};
+  return {k:'flare', gv:gv};
+}
 
-  if (gv === null || gv === undefined){
-    box.innerHTML = '<p style="margin:0 0 11px;font-size:14px;color:var(--soft)">' +
-      'Сделай три движения — 10 шагов, наклон как за шнурком, встань со стула. Худшее из них и есть ответ.</p>';
-    var host = document.createElement('div');
-    box.appendChild(host);
-    optionButtons(host, function(v){
+function renderNow(){
+  var box = $('nowCard');
+  var sit = situation();
+  var n = S.sessions.length + 1;
+  var canTrain = (sit.k === 'train');
+  box.innerHTML = '';
+
+  function head(kicker, title, body, tone){
+    var d = document.createElement('div');
+    if (tone) d.className = tone;
+    d.innerHTML = '<div class="kicker">' + kicker + '</div><h3>' + title + '</h3>' +
+                  (body ? '<p>' + body + '</p>' : '');
+    box.appendChild(d);
+    return d;
+  }
+  function why(t){
+    var d = document.createElement('div');
+    d.className = 'why';
+    d.innerHTML = t;
+    box.appendChild(d);
+  }
+  function opts(onPick){
+    var h = document.createElement('div');
+    h.style.marginTop = '14px';
+    box.appendChild(h);
+    optionButtons(h, onPick);
+  }
+  function btn(label, ghost, fn){
+    var b = document.createElement('button');
+    b.className = 'act' + (ghost ? ' ghost' : '');
+    b.textContent = label;
+    b.onclick = fn;
+    return b;
+  }
+  function bar(list){
+    var d = document.createElement('div');
+    d.className = 'btns';
+    list.forEach(function(b){ d.appendChild(b); });
+    box.appendChild(d);
+  }
+
+  if (sit.k === 'morning'){
+    head('Вопрос второй · после занятия',
+         'Как спина сегодня утром?',
+         'Занятие №' + sit.s.n + ' было ' + sit.s.date + '. Прошли сутки — теперь видно, как спина его перенесла.');
+    opts(function(v){
+      sit.s.morning = v;
+      saveState().then(function(){ render(); toast('Занятие №' + sit.s.n + ' закрыто'); });
+    });
+    why('<b>Это единственный ответ, который меняет нагрузку.</b> Отвечай сразу после подъёма, до того как расходишься.');
+
+  } else if (sit.k === 'wait'){
+    head('Сделано',
+         'На сегодня всё',
+         'Занятие №' + sit.s.n + ' сохранено. Проверка откроется завтра утром.');
+    why('Раньше чем через сутки она ничего не покажет — реакция у тебя приходит на следующий день. Поэтому сегодня приложение её и не спрашивает.');
+
+  } else if (sit.k === 'gate'){
+    head('Вопрос первый · перед занятием',
+         'Как ты себя чувствуешь сейчас?',
+         'Три движения: 10 шагов, наклон как за шнурком, встань со стула. Худшее из трёх и есть ответ.');
+    opts(function(v){
       S.gate = {date: today(), value: v};
       saveState().then(function(){ render(); });
     });
-  } else {
-    var st = document.createElement('div');
-    if (gv <= 1){
-      canTrain = true;
-      st.className = 'state go';
-      st.innerHTML = '<div class="big">Занятие идёт</div><p>Утро в норме. Доза ниже — без изменений.</p>';
-    } else if (gv === 2){
-      st.className = 'state hold';
-      st.innerHTML = '<div class="big">Сегодня только ходьба</div>' +
-        '<p>Силовое отменяется. Ходьба вдвое меньше обычного, короткими кусками. Дыхание 2×2 мин и кошка-корова 1×6 на малой амплитуде — можно.</p>';
-    } else {
-      st.className = 'state stop';
-      st.innerHTML = '<div class="big">Протокол обострения</div>' +
-        '<p>Силовое стоп. Открой раздел «Обострение — первые 72 часа» ниже и начни с определения причины: жизнь или само занятие.</p>';
-    }
-    box.innerHTML = '';
-    box.appendChild(st);
+    why('Этот ответ решает только одно — заниматься сегодня или ограничиться ходьбой. На дозу он не влияет.');
 
-    var bar = document.createElement('div');
-    bar.className = 'btns';
-    if (!canTrain){
-      var sk = document.createElement('button');
-      sk.className = 'act';
-      sk.textContent = 'Записать пропуск';
-      sk.onclick = function(){
-        S.sessions.push({
-          n: S.sessions.length + 1,
-          date: today(),
-          type: 'skip',
-          pre: gv,
-          dose: 'пропуск — силовое отменено',
-          during: null, after: null, fear: null,
-          note: '', morning: null
-        });
-        S.gate = null;
-        saveState().then(function(){ render(); toast('Пропуск записан'); });
-      };
-      bar.appendChild(sk);
-    }
-    var ch = document.createElement('button');
-    ch.className = 'act ghost';
-    ch.textContent = 'Изменить';
-    ch.onclick = function(){ S.gate = null; saveState().then(function(){ render(); }); };
-    bar.appendChild(ch);
-    box.appendChild(bar);
+  } else if (sit.k === 'train'){
+    head('Можно заниматься',
+         'Занятие №' + n + ' идёт',
+         'Утро в норме. Список упражнений ниже, доза уже выставлена. После занятия заполни отчёт и сохрани.', 'go');
+    bar([btn('Изменить ответ', true, function(){ S.gate = null; saveState().then(render); })]);
+    why(verdictSentence());
+
+  } else if (sit.k === 'walk'){
+    head('Силовое отменяется',
+         'Сегодня только ходьба',
+         'Ходьба вдвое меньше обычного, короткими кусками по 10–15 минут. Дыхание 2×2 минуты и кошка-корова 1×6 на малой амплитуде — можно.', 'hold');
+    bar([btn('Записать пропуск', false, addSkip), btn('Изменить ответ', true, function(){ S.gate = null; saveState().then(render); })]);
+    why('Пропуск не откатывает программу назад. Следующее занятие — в той же дозе, когда утро вернётся к обычному.');
+
+  } else {
+    head('Стоп',
+         'Протокол обострения',
+         'Силовое стоп. Открой раздел «Обострение — первые 72 часа» внизу и начни с определения причины: жизнь или само занятие.', 'stop');
+    bar([btn('Записать пропуск', false, addSkip), btn('Изменить ответ', true, function(){ S.gate = null; saveState().then(render); })]);
+    why('Возврат занимает 1–2 недели, а не месяц. К нулю не откатываемся.');
   }
 
   $('doseCard').className = 'card' + (canTrain ? '' : ' muted');
   $('reportCard').className = 'card' + (canTrain ? '' : ' muted');
+}
+
+function addSkip(){
+  var gv = (S.gate && S.gate.date === today()) ? S.gate.value : 2;
+  S.sessions.push({
+    n: S.sessions.length + 1, date: today(), type: 'skip', pre: gv,
+    dose: 'пропуск — силовое отменено',
+    during: null, after: null, fear: null, note: '', morning: null
+  });
+  S.gate = null;
+  saveState().then(function(){ render(); toast('Пропуск записан'); });
+}
+
+function verdictSentence(){
+  var v = verdictFor();
+  var map = {
+    'ДОБАВЛЯЮ':  'Два чистых утра подряд — на этом занятии доза уже усложнена.',
+    'ПОВТОРЯЮ':  'Доза та же, что в прошлый раз. Ничего не добавляем.',
+    'СНИЖАЮ':    'Доза снижена до половины от последней чистой.',
+    'ОБОСТРЕНИЕ':'После обострения заходим на 50% последней чистой дозы.',
+    'ПАУЗА':     'После пропуска — та же доза, что была до него.',
+    '—':         'Первое занятие. Доза стартовая.'
+  };
+  return map[v.v] || v.n;
 }
 
 function render(){
@@ -601,39 +685,16 @@ function render(){
     if (S.sessions[i].type !== 'skip' && !has(S.sessions[i].morning)){ pending = S.sessions[i]; break; }
   }
 
-  $('sessNo').textContent = S.sessions.length + 1;
   $('phaseNote').textContent = S.step === 0
     ? '3 занятия в неделю · стартовая доза'
     : '3 занятия в неделю · последнее изменение: ' + QUEUE[S.step].ch;
 
-  var sc = $('scale');
-  if (pending){
-    $('checkLbl').textContent = 'Утро после занятия №' + pending.n + ' (' + pending.date + ')';
-    $('verdict').textContent = 'Как утро?';
-    $('verdict').className = 'verdict';
-    $('verdictNote').textContent = 'Заполни сразу после подъёма, до того как расходишься. Это единственный ответ, по которому меняется доза.';
-    sc.style.display = 'block';
-    optionButtons(sc, function(v){
-      pending.morning = v;
-      saveState().then(function(){ render(); toast('Занятие №' + pending.n + ' закрыто'); });
-    });
-  } else {
-    var vd = verdictFor();
-    $('checkLbl').textContent = 'Решение на следующее занятие';
-    $('verdict').textContent = vd.v;
-    $('verdict').className = 'verdict ' + vd.c;
-    $('verdictNote').textContent = vd.n;
-    sc.style.display = vd.add ? 'flex' : 'none';
-    if (vd.add){
-      sc.innerHTML = '';
-      var ab = document.createElement('button');
-      ab.className = 'act';
-      ab.style.height = 'auto';
-      ab.textContent = 'Применить изменение';
-      ab.onclick = function(){ S.step++; saveState().then(function(){ render(); toast('Доза обновлена'); }); };
-      sc.appendChild(ab);
-    }
-  }
+  $('sessNo').textContent = S.sessions.length + 1;
+
+  var vd = verdictFor();
+  var vcol = vd.c === 'c-clean' ? 'var(--clean)' : vd.c === 'c-hold' ? 'var(--hold)' : vd.c === 'c-drop' ? 'var(--drop)' : 'var(--soft)';
+  $('verdictLine').innerHTML =
+    '<div class="vline"><b style="color:' + vcol + '">' + vd.v + '</b><span style="color:var(--soft)">' + vd.n + '</span></div>';
 
   var strip = $('strip');
   strip.innerHTML = '';
@@ -697,6 +758,8 @@ function render(){
       var cell;
       if (s.type === 'skip'){
         cell = '<span class="n">—</span>';
+      } else if (s.date >= today() && !has(s.morning)){
+        cell = '<span class="n" title="Реакция появляется через сутки">завтра</span>';
       } else if (editIdx === j){
         cell = '<div class="inline-scale">';
         for (var v = 0; v <= 3; v++) cell += '<button class="mini" data-set="' + j + ':' + v + '">' + LEVELS[v].s + '</button>';
@@ -711,7 +774,7 @@ function render(){
            '<td>' + num(s.during) + '</td><td>' + num(s.after) + '</td>' +
            '<td>' + cell + '</td>' +
            '<td style="text-align:right"><button class="mini" data-copy="' + j + '">копия</button></td></tr>';
-      h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.dose) +
+      h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.full || s.dose) +
            (has(s.fear) ? ' · настороженность ' + s.fear : '') +
            (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
     }
@@ -733,7 +796,7 @@ function render(){
     });
   }
 
-  renderGate();
+  renderNow();
 }
 
 function copySession(idx){
@@ -747,7 +810,8 @@ function copySession(idx){
   var txt =
     'Занятие №' + s.n + ' — ' + s.date + '\n' +
     'Утро перед занятием: ' + shortOf(s.pre) + '\n' +
-    'Доза: ' + s.dose + '\n' +
+    'Сделано: ' + (s.full || s.dose) + '\n' +
+    (has(s.done) ? 'Отмечено: ' + s.done + ' из ' + s.total + '\n' : '') +
     'Во время: ' + num(s.during) + '/10\n' +
     'Через час: ' + num(s.after) + '/10\n' +
     'Следующее утро: ' + (has(s.morning) ? shortOf(s.morning) : 'ещё не заполнено') + '\n' +
@@ -788,6 +852,9 @@ $('save').onclick = function(){
     type: 'session',
     pre: gv,
     dose: 'мост ' + q.b + ' · DB ' + q.d + ' · планка ' + q.p,
+    full: menu(S.step).map(function(e){ return e.nm + ' ' + e.dose; }).join(' · '),
+    done: menu(S.step).filter(function(e){ return checked[e.k]; }).length,
+    total: menu(S.step).length,
     during: val('fDuring'),
     after: val('fAfter'),
     fear: val('fFear'),
