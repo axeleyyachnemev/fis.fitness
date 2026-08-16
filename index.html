@@ -609,7 +609,8 @@ function renderNow(){
          'Занятие №' + sit.s.n + ' было ' + sit.s.date + '. Прошли сутки — теперь видно, как спина его перенесла.');
     opts(function(v){
       sit.s.morning = v;
-      saveState().then(function(){ render(); toast('Занятие №' + sit.s.n + ' закрыто'); });
+      var msg = applyVerdict();
+      saveState().then(function(){ render(); toast(msg); });
     });
     why('<b>Это единственный ответ, который меняет нагрузку.</b> Отвечай сразу после подъёма, до того как расходишься.');
 
@@ -655,6 +656,20 @@ function renderNow(){
   $('reportCard').className = 'card' + (canTrain ? '' : ' muted');
 }
 
+function applyVerdict(){
+  var vd = verdictFor();
+  if (vd.v === 'ДОБАВЛЯЮ' && QUEUE[S.step + 1]){
+    S.step++;
+    return 'Доза усложнена: ' + QUEUE[S.step].ch;
+  }
+  if (vd.v === 'СНИЖАЮ' || vd.v === 'ОБОСТРЕНИЕ'){
+    var back = S.step - 2;
+    S.step = back < 0 ? 0 : back;
+    return 'Доза снижена — заходим мягче';
+  }
+  return 'Доза без изменений';
+}
+
 function addSkip(){
   var gv = (S.gate && S.gate.date === today()) ? S.gate.value : 2;
   S.sessions.push({
@@ -669,9 +684,9 @@ function addSkip(){
 function verdictSentence(){
   var v = verdictFor();
   var map = {
-    'ДОБАВЛЯЮ':  'Два чистых утра подряд — на этом занятии доза уже усложнена.',
+    'ДОБАВЛЯЮ':  'Два чистых утра подряд — доза ниже уже усложнена: ' + QUEUE[S.step].ch + '.',
     'ПОВТОРЯЮ':  'Доза та же, что в прошлый раз. Ничего не добавляем.',
-    'СНИЖАЮ':    'Доза снижена до половины от последней чистой.',
+    'СНИЖАЮ':    'Доза ниже уже снижена — сейчас ' + QUEUE[S.step].ch + '.',
     'ОБОСТРЕНИЕ':'После обострения заходим на 50% последней чистой дозы.',
     'ПАУЗА':     'После пропуска — та же доза, что была до него.',
     '—':         'Первое занятие. Доза стартовая.'
@@ -788,7 +803,7 @@ function render(){
         var p = b.getAttribute('data-set').split(':');
         S.sessions[Number(p[0])].morning = Number(p[1]);
         editIdx = null;
-        saveState().then(function(){ render(); toast('Утро записано'); });
+        saveState().then(function(){ render(); toast('Исправлено — доза не менялась'); });
       };
     });
     Array.prototype.forEach.call(box.querySelectorAll('[data-copy]'), function(b){
