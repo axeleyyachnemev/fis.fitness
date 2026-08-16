@@ -335,6 +335,14 @@
       </ul></div>
     </details>
 
+    <details>
+      <summary>Доза — ручная поправка</summary>
+      <div class="in">
+        <p style="margin:0 0 8px">Обычно доза меняется сама, когда отвечаешь на утреннюю проверку. Этот блок нужен только если она отстала или ушла вперёд — например, ответ был дан на старой версии приложения.</p>
+        <div id="stepBox"></div>
+      </div>
+    </details>
+
     <details id="dataBlock">
       <summary>Перенос данных</summary>
       <div class="in">
@@ -358,6 +366,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
+    <span class="lbl" id="ver">v8</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -811,7 +820,33 @@ function render(){
     });
   }
 
+  renderStep();
   renderNow();
+}
+
+function renderStep(){
+  var box = $('stepBox');
+  if (!box) return;
+  var q = QUEUE[S.step];
+  box.innerHTML = '<div class="lbl">Сейчас ступень ' + (S.step + 1) + ' из ' + QUEUE.length + '</div>' +
+    '<div style="font-family:var(--mono);font-size:14px;margin:5px 0 3px">мост ' + q.b + ' · DB ' + q.d + ' · планка ' + q.p + '</div>' +
+    '<div style="font-size:13px;color:var(--soft)">' + q.ch + '</div>';
+  var bar = document.createElement('div');
+  bar.className = 'btns';
+  var back = document.createElement('button');
+  back.className = 'act ghost';
+  back.textContent = '← Ступень назад';
+  back.onclick = function(){
+    if (S.step > 0){ S.step--; saveState().then(function(){ render(); toast('Ступень ' + (S.step+1)); }); }
+  };
+  var fwd = document.createElement('button');
+  fwd.className = 'act ghost';
+  fwd.textContent = 'Ступень вперёд →';
+  fwd.onclick = function(){
+    if (QUEUE[S.step+1]){ S.step++; saveState().then(function(){ render(); toast('Ступень ' + (S.step+1)); }); }
+  };
+  bar.appendChild(back); bar.appendChild(fwd);
+  box.appendChild(bar);
 }
 
 function copySession(idx){
