@@ -227,6 +227,7 @@
         <li><b>На следующее утро</b> отвечаешь, как спина перенесла вчерашнее занятие. <b>Это единственный ответ, который меняет нагрузку.</b> Раньше чем через сутки он ничего не покажет, поэтому приложение и не спрашивает его в тот же день.</li>
         <li><b>Приложение решает само</b>: усложнить, повторить ту же дозу или снизить. Тебе остаётся сделать то, что написано наверху.</li>
       </ol>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: вт, чт, сб, вс. Понедельник свободен.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)">Два утренних вопроса легко перепутать. Разница простая: первый спрашивает «что со мной сейчас», второй — «что сделало вчерашнее занятие». Приложение всегда показывает только один из них, тот, который сегодня уместен.</p>
     </div>
   </details>
@@ -242,7 +243,7 @@
   </section>
 
   <section class="card" id="doseCard">
-    <h2>Занятие · что делать сегодня</h2>
+    <h2 id="doseTitle">Занятие · что делать сегодня</h2>
     <ol class="ex" id="exList"></ol>
     <div style="margin-top:12px;font-size:13px;color:var(--soft)">
       Плюс ходьба отдельно от занятия: 7 000–10 000 шагов.
@@ -360,7 +361,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v9</span>
+    <span class="lbl" id="ver">v10</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -470,14 +471,33 @@ var Store = (function(){
   };
 })();
 
-function menu(step){
+var BLOCK = {
+  A: ['br','cc','hinge','gb','db','dbf','sp'],
+  B: ['br','cc','sts','pallof','row','abd','hang']
+};
+
+function blockNow(){ return (S.next === 'B') ? 'B' : 'A'; }
+
+function menu(step, blk){
   var q = QUEUE[Math.min(step, QUEUE.length - 1)];
+  var allow = null;
+  if (phaseOf(step) === 1) allow = BLOCK[blk || blockNow()];
   var out = [];
   for (var i = 0; i < ORDER.length; i++){
     var k = ORDER[i];
-    if (q.d[k]) out.push({k:k, nm:EX[k].nm, dose:q.d[k], tip:EX[k].tip});
+    if (!q.d[k]) continue;
+    if (allow && allow.indexOf(k) < 0) continue;
+    out.push({k:k, nm:EX[k].nm, dose:q.d[k], tip:EX[k].tip});
   }
   return out;
+}
+
+function changedKey(step){
+  if (step < 1) return null;
+  var a = QUEUE[step-1].d, b = QUEUE[Math.min(step, QUEUE.length-1)].d, k;
+  for (k in b){ if (a[k] !== b[k]) return k; }
+  for (k in a){ if (!b[k]) return k; }
+  return null;
 }
 
 function phaseOf(step){ return QUEUE[Math.min(step, QUEUE.length - 1)].ph; }
@@ -502,6 +522,7 @@ function load(){
     if (raw){ try{ S = JSON.parse(raw); }catch(e){} }
     if (!S.sessions) S.sessions = [];
     if (typeof S.step !== 'number') S.step = 0;
+    if (S.next !== 'A' && S.next !== 'B') S.next = 'A';
     if (typeof S.base === 'number'){
       // старый формат: абсолютная шкала 0–10 с настраиваемым фоном → относительные уровни 0–3
       var b = S.base;
@@ -729,7 +750,14 @@ function verdictSentence(){
     'ПАУЗА':     'После пропуска — та же доза, что была до него.',
     '—':         'Первое занятие. Доза стартовая.'
   };
-  return map[v.v] || v.n;
+  var t = map[v.v] || v.n;
+  if (v.v === 'ДОБАВЛЯЮ' && phaseOf(S.step) === 1){
+    var k = changedKey(S.step);
+    if (k && BLOCK[blockNow()].indexOf(k) < 0){
+      t += ' Это упражнение из другого блока — увидишь его на следующем занятии.';
+    }
+  }
+  return t;
 }
 
 function render(){
@@ -756,7 +784,7 @@ function render(){
       '<li>Бег, прыжки, запланированная возня и борьба.</li>' +
       '<li>Больше двух подходов.</li>' +
       '<li>Поднимать тяжёлое с пола круглой спиной — вместо этого шарнир, отрабатывай его в быту.</li>' +
-      '<li>Два силовых занятия подряд без дня между ними.</li>' +
+      '<li>Гнаться за объёмом: если занятие стало длиннее 25 минут — скажи, разделим иначе.</li>' +
       '</ul>';
 
   $('phaseNote').textContent = S.step === 0
@@ -794,6 +822,10 @@ function render(){
     if (m <= 0 && S.sessions[i].type !== 'skip') st++; else break;
   }
   $('streak').textContent = st + (st >= 2 ? '  → можно добавлять' : '');
+
+  $('doseTitle').textContent = phaseOf(S.step) === 1
+    ? 'Занятие ' + blockNow() + ' · ' + (blockNow() === 'A' ? 'корпус и шарнир' : 'присед, тяга, антиротация')
+    : 'Занятие · что делать сегодня';
 
   var list = $('exList');
   list.innerHTML = '';
@@ -962,6 +994,7 @@ $('save').onclick = function(){
     morning: null
   });
   S.gate = null;
+  S.next = (blockNow() === 'A') ? 'B' : 'A';
   saveState().then(function(){
     ['fDuring','fAfter','fFear','fNote'].forEach(function(i){ $(i).value = ''; });
     checked = {};
