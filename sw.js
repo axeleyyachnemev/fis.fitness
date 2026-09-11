@@ -1,5 +1,5 @@
 /* Офлайн-кэш. Меняй VERSION при обновлении index.html — иначе телефон покажет старую копию. */
-var VERSION = 'faza0-v10';
+var VERSION = 'faza0-v11';
 var FILES = [
   './',
   './index.html',
