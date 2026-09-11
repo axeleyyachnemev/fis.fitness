@@ -363,7 +363,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v11</span>
+    <span class="lbl" id="ver">v12</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -804,7 +804,10 @@ function render(){
       '<li>Гнаться за объёмом: если занятие стало длиннее 25 минут — скажи, разделим иначе.</li>' +
       '</ul>';
 
-  $('phaseNote').textContent = S.step === 0
+  $('phaseNote').textContent = phaseOf(S.step) === 1
+    ? 'Занятия: вт, чт, сб · ' + QUEUE[S.step].ch
+    : 'Занятия: вт, чт, сб · день наблюдения между ними';
+  if (false) $('phaseNote').textContent = S.step === 0
     ? '3 занятия в неделю · стартовая доза'
     : '3 занятия в неделю · последнее изменение: ' + QUEUE[S.step].ch;
 
@@ -1000,7 +1003,7 @@ $('save').onclick = function(){
     date: $('fDate').value || today(),
     type: 'session',
     pre: gv,
-    dose: 'мост ' + q.b + ' · DB ' + q.d + ' · планка ' + q.p,
+    dose: (phaseOf(S.step) === 1 ? 'Занятие ' + blockNow() : 'Фаза 0') + ' · ' + q.ch,
     full: menu(S.step).map(function(e){ return e.nm + ' ' + e.dose; }).join(' · '),
     done: menu(S.step).filter(function(e){ return checked[e.k]; }).length,
     total: menu(S.step).length,
