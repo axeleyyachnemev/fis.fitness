@@ -363,7 +363,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v12</span>
+    <span class="lbl" id="ver">v13</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -478,6 +478,28 @@ var BLOCK = {
   B: ['br','cc','sts','pallof','row','abd','hang']
 };
 
+var DAYS   = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+var DAYS_S = ['вс','пн','вт','ср','чт','пт','сб'];
+var TRAIN_DAYS = [2, 4, 6];   // вт, чт, сб
+
+function isTrainDay(d){
+  var n = (d || new Date()).getDay();
+  return TRAIN_DAYS.indexOf(n) >= 0;
+}
+function nextTrainDay(){
+  var d = new Date();
+  for (var i = 1; i <= 7; i++){
+    var t = new Date(d.getTime() + i * 86400000);
+    if (isTrainDay(t)) return {name: DAYS[t.getDay()], days: i};
+  }
+  return {name:'—', days:0};
+}
+function todayLabel(){
+  var d = new Date();
+  return DAYS[d.getDay()] + ', ' + d.getDate() + ' ' +
+    ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][d.getMonth()];
+}
+
 function blockNow(){ return (S.next === 'B') ? 'B' : 'A'; }
 
 function menu(step, blk){
@@ -504,7 +526,7 @@ function changedKey(step){
 
 function phaseOf(step){ return QUEUE[Math.min(step, QUEUE.length - 1)].ph; }
 
-var S = {step:0, sessions:[], gate:null, next:'A', halfStep:0};
+var S = {step:0, sessions:[], gate:null, next:'A', halfStep:0, anyway:null};
 var checked = {};
 var editIdx = null;
 
@@ -618,6 +640,7 @@ function situation(){
   var gv = (S.gate && S.gate.date === t) ? S.gate.value : null;
   if (pending && pending.date < t) return {k:'morning', s:pending};
   if (pending) return {k:'wait', s:pending};
+  if (!isTrainDay() && !(S.anyway && S.anyway === today())) return {k:'off'};
   if (gv === null || gv === undefined) return {k:'gate'};
   if (gv <= 1) return {k:'train', gv:gv};
   if (gv === 2) return {k:'walk', gv:gv};
@@ -681,6 +704,18 @@ function renderNow(){
          'На сегодня всё',
          'Занятие №' + sit.s.n + ' сохранено. Проверка откроется завтра утром.');
     why('Раньше чем через сутки она ничего не покажет — реакция у тебя приходит на следующий день. Поэтому сегодня приложение её и не спрашивает.');
+
+  } else if (sit.k === 'off'){
+    var nx = nextTrainDay();
+    head('Сегодня ' + DAYS[new Date().getDay()],
+         'День без занятия',
+         'Силовое по расписанию во вторник, четверг и субботу. Следующее — в ' + nx.name +
+         (nx.days === 1 ? ' (завтра)' : ' (через ' + nx.days + ' дн.)') + '.');
+    bar([btn('Всё равно заниматься', true, function(){
+      S.anyway = today();
+      saveState().then(render);
+    })]);
+    why('Ходьба сегодня как обычно. Кардио — по своему графику, оно от этого расписания не зависит.');
 
   } else if (sit.k === 'gate'){
     head('Вопрос первый · перед занятием',
@@ -804,9 +839,7 @@ function render(){
       '<li>Гнаться за объёмом: если занятие стало длиннее 25 минут — скажи, разделим иначе.</li>' +
       '</ul>';
 
-  $('phaseNote').textContent = phaseOf(S.step) === 1
-    ? 'Занятия: вт, чт, сб · ' + QUEUE[S.step].ch
-    : 'Занятия: вт, чт, сб · день наблюдения между ними';
+  $('phaseNote').textContent = todayLabel() + ' · занятия вт, чт, сб';
   if (false) $('phaseNote').textContent = S.step === 0
     ? '3 занятия в неделю · стартовая доза'
     : '3 занятия в неделю · последнее изменение: ' + QUEUE[S.step].ch;
@@ -843,9 +876,11 @@ function render(){
   }
   $('streak').textContent = st + (st >= 2 ? '  → можно добавлять' : '');
 
+  var dayWord = isTrainDay() ? (DAYS_S[new Date().getDay()] + ' · ') : ('следующее ' + DAYS_S[0] + ' ');
+  dayWord = isTrainDay() ? (DAYS_S[new Date().getDay()] + ' · ') : '';
   $('doseTitle').textContent = phaseOf(S.step) === 1
-    ? 'Занятие ' + blockNow() + ' · ' + (blockNow() === 'A' ? 'корпус и шарнир' : 'присед, тяга, антиротация')
-    : 'Занятие · что делать сегодня';
+    ? dayWord + 'занятие ' + blockNow() + ' · ' + (blockNow() === 'A' ? 'корпус и шарнир' : 'присед, тяга, антиротация')
+    : (isTrainDay() ? dayWord + 'занятие' : 'Занятие · следующее по расписанию');
 
   var list = $('exList');
   list.innerHTML = '';
@@ -1082,7 +1117,7 @@ $('fileIn').onchange = function(){
 
 $('reset').onclick = function(){
   if (!confirm('Удалить все занятия и вернуть стартовую дозу? Отменить нельзя.')) return;
-  S = {step:0, sessions:[], gate:null, next:'A', halfStep:0};
+  S = {step:0, sessions:[], gate:null, next:'A', halfStep:0, anyway:null};
   checked = {};
   Store.del(KEY).then(function(){ render(); toast('Журнал очищен'); });
 };
