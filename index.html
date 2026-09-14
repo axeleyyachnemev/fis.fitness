@@ -295,13 +295,24 @@
 
     <details>
       <summary>Правило прогрессии</summary>
-      <div class="in"><ul>
-        <li>Одно изменение за занятие: повторы ИЛИ подход ИЛИ секунды ИЛИ новое упражнение.</li>
-        <li>Шаг: +2 повтора, +5 секунд или +1 подход. Не больше.</li>
-        <li>Право на добавление даёт чистое утро. Первое добавление в фазе — после двух чистых подряд.</li>
-        <li>Утро не чистое → повторить ту же дозу. Не откат и не пропуск.</li>
-        <li>Резкое движение в жизни программу не меняет — только следующее занятие.</li>
-      </ul></div>
+      <div class="in">
+        <p style="margin:0 0 8px"><b>Два разных типа изменений, и правила у них разные.</b></p>
+        <p style="margin:0 0 6px"><b>Доза</b> — повторы, подходы, секунды на уже знакомом упражнении. Одно изменение за занятие, шаг +2 повтора / +5 секунд / +1 подход. Открывается после двух чистых утр подряд.</p>
+        <p style="margin:0 0 8px"><b>Новое упражнение</b> — паттерн, которого ткань ещё не делала. Открывается только после набранного числа чистых занятий с предыдущим новым:</p>
+        <ul>
+          <li>горизонтальное, без сопротивления — <b>3 занятия</b></li>
+          <li>вертикальное, новый паттерн — <b>4 занятия</b></li>
+          <li>фигурировало в прежних эпизодах — <b>6 занятий</b></li>
+        </ul>
+        <p style="margin:8px 0 6px"><b>«Чистое занятие» — это три условия сразу:</b> утро как всегда, во время не выше единицы, и через час ощущение вернулось к обычному.</p>
+        <ul>
+          <li>Через час не вернулось → доза стоит, даже при чистом утре.</li>
+          <li>Утро не чистое → повторить ту же дозу. Не откат и не пропуск.</li>
+          <li>Новые упражнения никогда на соседних занятиях.</li>
+          <li>Занятие длиннее 25 минут — сигнал, что меню пора делить иначе.</li>
+          <li>Событие вне тренировки программу не меняет, только следующее занятие.</li>
+        </ul>
+      </div>
     </details>
 
     <details>
@@ -363,7 +374,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v13</span>
+    <span class="lbl" id="ver">v14</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -516,6 +527,50 @@ function menu(step, blk){
   return out;
 }
 
+var GATE = {           // сколько чистых занятий нужно ПОСЛЕ ввода упражнения
+  hinge:  4,           // вертикальный новый паттерн
+  pallof: 4,
+  row:    4,
+  hang:   4,
+  abd:    3,           // горизонтальное, без сопротивления
+  sts:    6,           // фигурировал в прежних эпизодах
+  dbf:    3            // прогрессия знакомого движения
+};
+
+// true, если переход на этот шаг ВВОДИТ новое упражнение (а не меняет дозу)
+function isNewExercise(step){
+  if (step < 1) return false;
+  var a = QUEUE[step-1].d, b = QUEUE[Math.min(step, QUEUE.length-1)].d, k;
+  for (k in b){ if (!a[k]) return true; }
+  return false;
+}
+
+// упражнение, введённое последним (по текущему шагу назад)
+function lastIntroduced(step){
+  for (var i = Math.min(step, QUEUE.length-1); i >= 1; i--){
+    var a = QUEUE[i-1].d, b = QUEUE[i].d, k;
+    for (k in b){ if (!a[k]) return {key:k, step:i}; }
+  }
+  return null;
+}
+
+// сколько чистых занятий выполнено с момента ввода последнего упражнения
+function cleanSince(){
+  var n = 0;
+  for (var i = S.sessions.length - 1; i >= 0; i--){
+    var x = S.sessions[i];
+    if (x.type === 'skip') break;
+    if (!has(x.morning)) continue;
+    var ok = (x.morning <= 0) &&
+             (!has(x.during) || x.during <= 1) &&
+             (!has(x.after)  || x.after  <= 0);
+    if (!ok) break;
+    n++;
+    if (x.introduced) break;   // дошли до занятия, где упражнение вводилось
+  }
+  return n;
+}
+
 function changedKey(step){
   if (step < 1) return null;
   var a = QUEUE[step-1].d, b = QUEUE[Math.min(step, QUEUE.length-1)].d, k;
@@ -602,6 +657,15 @@ function verdictFor(){
   if (last >= 3) return {v:'ОБОСТРЕНИЕ', c:'c-drop', n:'Протокол ниже. Сначала определи причину: жизнь или само занятие — решения разные.', add:false};
   if (last === 2) return {v:'СНИЖАЮ', c:'c-drop', n:'Откат до 50% последней чистой дозы. Две чистые сессии — и возвращаешься обратно.', add:false};
   if (last === 1) return {v:'ПОВТОРЯЮ', c:'c-hold', n:'Та же доза без изменений. Не откат и не пропуск — просто ещё один заход.', add:false};
+  // «через час» не вернулось к обычному — доза стоит, независимо от утра
+  var lastS = null;
+  for (var j = S.sessions.length - 1; j >= 0; j--){
+    if (S.sessions[j].type !== 'skip'){ lastS = S.sessions[j]; break; }
+  }
+  if (lastS && has(lastS.after) && lastS.after > 0){
+    return {v:'ПОВТОРЯЮ', c:'c-hold', add:false,
+      n:'Через час ощущение не вернулось к обычному. Доза без изменений, даже при чистом утре.'};
+  }
   if (prev !== null && prev <= 0) return {
     v:'ДОБАВЛЯЮ', c:'c-clean',
     n:'Два чистых утра подряд. Следующее изменение: ' + (QUEUE[S.step+1] ? QUEUE[S.step+1].ch : 'Фаза 0 пройдена — жди Фазу 1'),
@@ -762,6 +826,17 @@ function applyVerdict(){
         return 'После обострения — половинный шаг. Доза без изменений.';
       }
     }
+    // Ввод нового упражнения требует набранного порога чистых занятий
+    if (isNewExercise(S.step + 1)){
+      var li = lastIntroduced(S.step);
+      if (li){
+        var need = GATE[li.key] || 4;
+        var got  = cleanSince();
+        if (got < need){
+          return 'Ждём: ' + EX[li.key].nm + ' — ' + got + ' из ' + need + ' чистых занятий';
+        }
+      }
+    }
     S.step++;
     return 'Доза усложнена: ' + QUEUE[S.step].ch;
   }
@@ -803,6 +878,14 @@ function verdictSentence(){
     '—':         'Первое занятие. Доза стартовая.'
   };
   var t = map[v.v] || v.n;
+  var li = lastIntroduced(S.step);
+  if (li && QUEUE[S.step + 1] && isNewExercise(S.step + 1)){
+    var need = GATE[li.key] || 4, got = cleanSince();
+    if (got < need){
+      t += ' Следующее упражнение откроется после ' + need + ' чистых занятий с «' +
+           EX[li.key].nm + '» — сейчас ' + got + '.';
+    }
+  }
   if (v.v === 'ДОБАВЛЯЮ' && phaseOf(S.step) === 1){
     var k = changedKey(S.step);
     if (k && BLOCK[blockNow()].indexOf(k) < 0){
@@ -1046,7 +1129,8 @@ $('save').onclick = function(){
     after: val('fAfter'),
     fear: val('fFear'),
     note: $('fNote').value.replace(/^\s+|\s+$/g, ''),
-    morning: null
+    morning: null,
+    introduced: isNewExercise(S.step)
   });
   S.gate = null;
   S.next = (blockNow() === 'A') ? 'B' : 'A';
