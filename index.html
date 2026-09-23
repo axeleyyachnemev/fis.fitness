@@ -217,6 +217,7 @@
   </div>
 
   <section class="now" id="nowCard"></section>
+  <div id="epBox" style="margin-top:8px"></div>
 
   <details class="card howto" id="howto">
     <summary>Как это работает — четыре шага</summary>
@@ -227,7 +228,9 @@
         <li><b>На следующее утро</b> отвечаешь, как спина перенесла вчерашнее занятие. <b>Это единственный ответ, который меняет нагрузку.</b> Раньше чем через сутки он ничего не покажет, поэтому приложение и не спрашивает его в тот же день.</li>
         <li><b>Приложение решает само</b>: усложнить, повторить ту же дозу или снизить. Тебе остаётся сделать то, что написано наверху.</li>
       </ol>
-      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: вт, чт, сб, вс. Понедельник свободен.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: вт, чт, сб. Понедельник свободен.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Боль посреди дня.</b> Если между проверками случился эпизод — нажми «Отметить эпизод» под верхней карточкой. Несильный — доза просто постоит. От 4/10 — приложение само включит протокол обострения.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Воскресенье.</b> Одна минута: взвеситься и внести вес в Garmin, оценить энергию за неделю.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)">Два утренних вопроса легко перепутать. Разница простая: первый спрашивает «что со мной сейчас», второй — «что сделало вчерашнее занятие». Приложение всегда показывает только один из них, тот, который сегодня уместен.</p>
     </div>
   </details>
@@ -323,6 +326,7 @@
     <details>
       <summary>Обострение — первые 72 часа</summary>
       <div class="in"><ul>
+        <li><b>Отметь эпизод в приложении</b> — кнопка под верхней карточкой. От 4/10 оно само поставит паузу и откатит дозу.</li>
         <li><b>0–24 ч.</b> Силовое стоп. Кардио стоп на 48 ч. Ходьба вдвое меньше обычного, кусками по 10–15 мин. Дыхание 2×2 мин и кошка-корова 1×6 на малой амплитуде — можно. Постельного режима нет, положение менять каждые 20–30 мин.</li>
         <li><b>24–72 ч.</b> Ходьба возвращается к обычному объёму по самочувствию. Силовое всё ещё стоп, пока при движении больше 2/10.</li>
         <li><b>Возврат.</b> Заходишь на стартовую дозу Фазы 0 — она с доказанной переносимостью. Приложение откатывает туда само.</li>
@@ -371,10 +375,11 @@
   </section>
 
   <div class="warn" id="warn"></div>
+  <div class="warn" id="bkWarn"></div>
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v14</span>
+    <span class="lbl" id="ver">v15</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -385,7 +390,7 @@
 var KEY = 'sp:faza0:v1';
 
 var EX = {
-  br:    {nm:'Дыхание лёжа', tip:'Ноги согнуты, стопы на полу. Вдох носом 4 с — расходятся нижние рёбра. Выдох 6 с. Плечи не поднимаются.'},
+  br:    {nm:'Дыхание лёжа', tip:'Циклический вздох. Лёжа, ноги согнуты. Вдох носом, в конце — короткий второй довдох, затем длинный спокойный выдох ртом. Около пяти минут; меньше пяти почти не работает.'},
   cc:    {nm:'Кошка-корова', tip:'50% амплитуды, 3 с в каждую сторону. Разминка, а не растяжка — максимум не догонять.'},
   hinge: {nm:'Тазовый шарнир с палкой', tip:'Палка вдоль спины: касается затылка, лопаток и крестца всю дорогу. Таз идёт назад, корпус наклоняется следом, колени чуть мягкие. 3 с вниз, 1 с вверх. Опускаться до лёгкого натяжения задней поверхности бедра, не ниже. Палка отошла от крестца — амплитуду уменьшить.'},
   sts:   {nm:'Вставание со стула', tip:'Обычный стул, стопы на ширине таза, руки скрещены на груди. 3 с вниз, касание, встать. Садиться под контролем, а не падать. Роняешь себя — подложи подушку.'},
@@ -402,38 +407,38 @@ var EX = {
 var ORDER = ['br','cc','hinge','sts','gb','db','dbf','pallof','row','abd','hang','sp'];
 
 var QUEUE = [
-  {ph:0, ch:'стартовая доза',            d:{br:'2 мин', cc:'1×8', gb:'1×8',  db:'1×6', sp:'1×15 с'}},
-  {ph:0, ch:'мостик 1×8 → 1×10',         d:{br:'2 мин', cc:'1×8', gb:'1×10', db:'1×6', sp:'1×15 с'}},
-  {ph:0, ch:'dead bug 1×6 → 1×8',        d:{br:'2 мин', cc:'1×8', gb:'1×10', db:'1×8', sp:'1×15 с'}},
-  {ph:0, ch:'планка 15 → 20 с',          d:{br:'2 мин', cc:'1×8', gb:'1×10', db:'1×8', sp:'1×20 с'}},
-  {ph:0, ch:'мостик 1×10 → 2×8',         d:{br:'2 мин', cc:'1×8', gb:'2×8',  db:'1×8', sp:'1×20 с'}},
-  {ph:0, ch:'dead bug 1×8 → 2×6',        d:{br:'2 мин', cc:'1×8', gb:'2×8',  db:'2×6', sp:'1×20 с'}},
-  {ph:0, ch:'планка 1×20 → 2×15 с',      d:{br:'2 мин', cc:'1×8', gb:'2×8',  db:'2×6', sp:'2×15 с'}},
-  {ph:0, ch:'мостик 2×8 → 2×10',         d:{br:'2 мин', cc:'1×8', gb:'2×10', db:'2×6', sp:'2×15 с'}},
-  {ph:0, ch:'dead bug 2×6 → 2×8',        d:{br:'2 мин', cc:'1×8', gb:'2×10', db:'2×8', sp:'2×15 с'}},
-  {ph:0, ch:'планка 2×15 → 2×20 с — конец Фазы 0', d:{br:'2 мин', cc:'1×8', gb:'2×10', db:'2×8', sp:'2×20 с'}},
+  {ph:0, ch:'стартовая доза',            d:{br:'5 мин', cc:'1×8', gb:'1×8',  db:'1×6', sp:'1×15 с'}},
+  {ph:0, ch:'мостик 1×8 → 1×10',         d:{br:'5 мин', cc:'1×8', gb:'1×10', db:'1×6', sp:'1×15 с'}},
+  {ph:0, ch:'dead bug 1×6 → 1×8',        d:{br:'5 мин', cc:'1×8', gb:'1×10', db:'1×8', sp:'1×15 с'}},
+  {ph:0, ch:'планка 15 → 20 с',          d:{br:'5 мин', cc:'1×8', gb:'1×10', db:'1×8', sp:'1×20 с'}},
+  {ph:0, ch:'мостик 1×10 → 2×8',         d:{br:'5 мин', cc:'1×8', gb:'2×8',  db:'1×8', sp:'1×20 с'}},
+  {ph:0, ch:'dead bug 1×8 → 2×6',        d:{br:'5 мин', cc:'1×8', gb:'2×8',  db:'2×6', sp:'1×20 с'}},
+  {ph:0, ch:'планка 1×20 → 2×15 с',      d:{br:'5 мин', cc:'1×8', gb:'2×8',  db:'2×6', sp:'2×15 с'}},
+  {ph:0, ch:'мостик 2×8 → 2×10',         d:{br:'5 мин', cc:'1×8', gb:'2×10', db:'2×6', sp:'2×15 с'}},
+  {ph:0, ch:'dead bug 2×6 → 2×8',        d:{br:'5 мин', cc:'1×8', gb:'2×10', db:'2×8', sp:'2×15 с'}},
+  {ph:0, ch:'планка 2×15 → 2×20 с — конец Фазы 0', d:{br:'5 мин', cc:'1×8', gb:'2×10', db:'2×8', sp:'2×20 с'}},
 
-  {ph:1, ch:'Фаза 1 — добавлен тазовый шарнир 1×8', d:{br:'2 мин', cc:'1×8', hinge:'1×8', gb:'2×10', db:'2×8', sp:'2×20 с'}},
-  {ph:1, ch:'добавлено вставание со стула 1×8',     d:{br:'2 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', sp:'2×20 с'}},
-  {ph:1, ch:'добавлен Pallof press 1×8',            d:{br:'2 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', sp:'2×20 с'}},
-  {ph:1, ch:'добавлена тяга эспандера 1×12',        d:{br:'2 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', row:'1×12', sp:'2×20 с'}},
-  {ph:1, ch:'добавлен мёртвый вис 1×15 с',          d:{br:'2 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', row:'1×12', hang:'1×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'добавлено отведение бедра 1×12',       d:{br:'2 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'dead bug → полный вариант 2×6',        d:{br:'2 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', dbf:'2×6', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'Фаза 1 — добавлен тазовый шарнир 1×8', d:{br:'5 мин', cc:'1×8', hinge:'1×8', gb:'2×10', db:'2×8', sp:'2×20 с'}},
+  {ph:1, ch:'добавлено вставание со стула 1×8',     d:{br:'5 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', sp:'2×20 с'}},
+  {ph:1, ch:'добавлен Pallof press 1×8',            d:{br:'5 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', sp:'2×20 с'}},
+  {ph:1, ch:'добавлена тяга эспандера 1×12',        d:{br:'5 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', row:'1×12', sp:'2×20 с'}},
+  {ph:1, ch:'добавлен мёртвый вис 1×15 с',          d:{br:'5 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', row:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'добавлено отведение бедра 1×12',       d:{br:'5 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', db:'2×8', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'dead bug → полный вариант 2×6',        d:{br:'5 мин', cc:'1×8', hinge:'1×8', sts:'1×8', gb:'2×10', dbf:'2×6', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
 
-  {ph:1, ch:'шарнир 1×8 → 2×8',                     d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'1×8', gb:'2×10', dbf:'2×6', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'вставание со стула 1×8 → 2×8',         d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'Pallof press 1×8 → 2×8',               d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'тяга 1×12 → 2×12',                     d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'вис 1×15 → 2×15 с',                    d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'1×12', hang:'2×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'отведение бедра 1×12 → 2×12',          d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'мостик 2×10 → 2×12',                   d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×12', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'dead bug полный 2×6 → 2×8',            d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×20 с'}},
-  {ph:1, ch:'планка 2×20 → 2×25 с',                 d:{br:'2 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
-  {ph:1, ch:'шарнир 2×8 → 2×10',                    d:{br:'2 мин', cc:'1×8', hinge:'2×10', sts:'2×8', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
-  {ph:1, ch:'вставание со стула 2×8 → 2×10',        d:{br:'2 мин', cc:'1×8', hinge:'2×10', sts:'2×10', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
-  {ph:1, ch:'Pallof press 2×8 → 2×10',              d:{br:'2 мин', cc:'1×8', hinge:'2×10', sts:'2×10', gb:'2×12', dbf:'2×8', pallof:'2×10', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
-  {ph:1, ch:'вис 2×15 → 2×20 с — целевое меню Фазы 1 собрано', d:{br:'2 мин', cc:'1×8', hinge:'2×10', sts:'2×10', gb:'2×12', dbf:'2×8', pallof:'2×10', row:'2×12', abd:'2×12', hang:'2×20 с', sp:'2×25 с'}}
+  {ph:1, ch:'шарнир 1×8 → 2×8',                     d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'1×8', gb:'2×10', dbf:'2×6', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'вставание со стула 1×8 → 2×8',         d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'1×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'Pallof press 1×8 → 2×8',               d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'1×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'тяга 1×12 → 2×12',                     d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'1×12', hang:'1×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'вис 1×15 → 2×15 с',                    d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'1×12', hang:'2×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'отведение бедра 1×12 → 2×12',          d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×10', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'мостик 2×10 → 2×12',                   d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×12', dbf:'2×6', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'dead bug полный 2×6 → 2×8',            d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×20 с'}},
+  {ph:1, ch:'планка 2×20 → 2×25 с',                 d:{br:'5 мин', cc:'1×8', hinge:'2×8', sts:'2×8', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
+  {ph:1, ch:'шарнир 2×8 → 2×10',                    d:{br:'5 мин', cc:'1×8', hinge:'2×10', sts:'2×8', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
+  {ph:1, ch:'вставание со стула 2×8 → 2×10',        d:{br:'5 мин', cc:'1×8', hinge:'2×10', sts:'2×10', gb:'2×12', dbf:'2×8', pallof:'2×8', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
+  {ph:1, ch:'Pallof press 2×8 → 2×10',              d:{br:'5 мин', cc:'1×8', hinge:'2×10', sts:'2×10', gb:'2×12', dbf:'2×8', pallof:'2×10', row:'2×12', abd:'2×12', hang:'2×15 с', sp:'2×25 с'}},
+  {ph:1, ch:'вис 2×15 → 2×20 с — целевое меню Фазы 1 собрано', d:{br:'5 мин', cc:'1×8', hinge:'2×10', sts:'2×10', gb:'2×12', dbf:'2×8', pallof:'2×10', row:'2×12', abd:'2×12', hang:'2×20 с', sp:'2×25 с'}}
 ];
 
 /* хранилище: чат → браузер → память */
@@ -556,10 +561,11 @@ function lastIntroduced(step){
 
 // сколько чистых занятий выполнено с момента ввода последнего упражнения
 function cleanSince(){
-  var n = 0;
+  var n = 0, ep = lastEpisode();
   for (var i = S.sessions.length - 1; i >= 0; i--){
     var x = S.sessions[i];
     if (x.type === 'skip') break;
+    if (ep && x.date <= ep.date) break;
     if (!has(x.morning)) continue;
     var ok = (x.morning <= 0) &&
              (!has(x.during) || x.during <= 1) &&
@@ -603,6 +609,8 @@ function load(){
     if (typeof S.step !== 'number') S.step = 0;
     if (S.next !== 'A' && S.next !== 'B') S.next = 'A';
     if (typeof S.halfStep !== 'number') S.halfStep = 0;
+    if (!S.episodes) S.episodes = [];
+    if (!S.weekly) S.weekly = [];
     if (typeof S.base === 'number'){
       // старый формат: абсолютная шкала 0–10 с настраиваемым фоном → относительные уровни 0–3
       var b = S.base;
@@ -645,6 +653,11 @@ function classOf(m){
 function readingOf(s){ return s.type === 'skip' ? s.pre : s.morning; }
 
 function verdictFor(){
+  var ep = episodeActive();
+  if (ep && ep.lvl !== 'low') return {v:'ОБОСТРЕНИЕ', c:'c-drop', add:false,
+    n:'Был эпизод от 4/10 — протокол обострения, возврат на стартовую дозу.'};
+  if (ep) return {v:'ПОВТОРЯЮ', c:'c-hold', add:false,
+    n:'Был эпизод боли — доза стоит, пока следующее занятие не пройдёт чисто.'};
   var lastEntry = S.sessions.length ? S.sessions[S.sessions.length-1] : null;
   if (lastEntry && lastEntry.type === 'skip'){
     return {v:'ПАУЗА', c:'c-hold', add:false,
@@ -696,6 +709,56 @@ function optionButtons(box, onPick){
   box.appendChild(grid);
 }
 
+function isoOf(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function addDays(iso, n){ var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return isoOf(d); }
+function daysBetween(a, b){ return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
+var MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function fmtShort(iso){ var d = new Date(iso + 'T12:00:00'); return d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+
+function lastEpisode(){ return (S.episodes && S.episodes.length) ? S.episodes[S.episodes.length - 1] : null; }
+function lastSessionDate(){
+  for (var i = S.sessions.length - 1; i >= 0; i--){ if (S.sessions[i].type !== 'skip') return S.sessions[i].date; }
+  return null;
+}
+// эпизод, случившийся в день последнего занятия или позже, — ещё «действует»
+function episodeActive(){
+  var e = lastEpisode(); if (!e) return null;
+  var ls = lastSessionDate();
+  return (!ls || e.date >= ls) ? e : null;
+}
+function inPause(){ return !!(S.pauseUntil && today() < S.pauseUntil); }
+
+function recordEpisode(lvl){
+  if (!S.episodes) S.episodes = [];
+  S.episodes.push({date: today(), lvl: lvl});
+  var msg;
+  if (lvl === 'low'){
+    msg = 'Эпизод записан — следующая доза постоит';
+  } else {
+    S.step = 0; S.next = 'A'; S.halfStep = 6;
+    S.pauseUntil = addDays(today(), 3);
+    S.gate = null;
+    msg = 'Протокол обострения включён';
+  }
+  epOpen = false;
+  saveState().then(function(){ render(); toast(msg); });
+}
+
+function lastSundayISO(){ var d = new Date(); return isoOf(new Date(d.getTime() - d.getDay() * 86400000)); }
+function weeklyDue(){
+  var dow = new Date().getDay();
+  if (dow !== 0 && dow !== 1) return false;
+  var ls = lastSundayISO(), w = S.weekly || [];
+  for (var i = 0; i < w.length; i++){ if (w[i].date >= ls) return false; }
+  return true;
+}
+function backupDue(){
+  if (S.sessions.length < 5) return false;
+  return !S.lastBackup || daysBetween(S.lastBackup, today()) > 30;
+}
+
+var epOpen = false;
+
 function situation(){
   var t = today(), i, pending = null;
   for (i = 0; i < S.sessions.length; i++){
@@ -704,6 +767,7 @@ function situation(){
   var gv = (S.gate && S.gate.date === t) ? S.gate.value : null;
   if (pending && pending.date < t) return {k:'morning', s:pending};
   if (pending) return {k:'wait', s:pending};
+  if (inPause()) return {k:'pause'};
   if (!isTrainDay() && !(S.anyway && S.anyway === today())) return {k:'off'};
   if (gv === null || gv === undefined) return {k:'gate'};
   if (gv <= 1) return {k:'train', gv:gv};
@@ -780,6 +844,35 @@ function renderNow(){
       saveState().then(render);
     })]);
     why('Ходьба сегодня как обычно. Кардио — по своему графику, оно от этого расписания не зависит.');
+    if (weeklyDue()){
+      var wb = document.createElement('div');
+      wb.className = 'why';
+      wb.innerHTML = '<b>Воскресная проверка — одна минута.</b><br>1. Встань на весы утром, натощак, и внеси вес в Garmin Connect.<br>2. Оцени энергию за прошедшую неделю, от 1 до 10.';
+      box.appendChild(wb);
+      var lab = document.createElement('label');
+      lab.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px';
+      var wcb = document.createElement('input'); wcb.type = 'checkbox';
+      wcb.style.cssText = 'width:19px;height:19px;accent-color:var(--accent)';
+      lab.appendChild(wcb);
+      lab.appendChild(document.createTextNode('вес внесён в Garmin'));
+      box.appendChild(lab);
+      var row = document.createElement('div');
+      row.className = 'inline-scale'; row.style.marginTop = '10px';
+      for (var ev = 1; ev <= 10; ev++){
+        (function(v){
+          var eb = document.createElement('button');
+          eb.className = 'mini'; eb.textContent = v;
+          eb.setAttribute('aria-label', 'Энергия ' + v + ' из 10');
+          eb.onclick = function(){
+            if (!S.weekly) S.weekly = [];
+            S.weekly.push({date: today(), energy: v, weighed: !!wcb.checked});
+            saveState().then(function(){ render(); toast('Неделя записана'); });
+          };
+          row.appendChild(eb);
+        })(ev);
+      }
+      box.appendChild(row);
+    }
 
   } else if (sit.k === 'gate'){
     head('Вопрос первый · перед занятием',
@@ -799,11 +892,22 @@ function renderNow(){
     why(verdictSentence());
 
   } else if (sit.k === 'walk'){
-    head('Силовое отменяется',
-         'Сегодня только ходьба',
-         'Ходьба вдвое меньше обычного, короткими кусками по 10–15 минут. Дыхание 2×2 минуты и кошка-корова 1×6 на малой амплитуде — можно.', 'hold');
-    bar([btn('Записать пропуск', false, addSkip), btn('Изменить ответ', true, function(){ S.gate = null; saveState().then(render); })]);
-    why('Пропуск не откатывает программу назад. Следующее занятие — в той же дозе, когда утро вернётся к обычному.');
+    head('Вместо занятия',
+         'Минимальный вариант, 6–8 минут',
+         'Дыхание 5 мин · кошка-корова 1×6 на малой амплитуде · ягодичный мостик 1×5 без удержания, подъём наполовину. Ходьба как обычно.', 'hold');
+    bar([btn('Записать минимальный вариант', false, function(){ addSkip('минимальный вариант'); }),
+         btn('Изменить ответ', true, function(){ S.gate = null; saveState().then(render); })]);
+    why('Доза в программе не меняется. Смысл — не прерывать движение полностью, пока утро не вернётся к обычному.');
+
+  } else if (sit.k === 'pause'){
+    var le = lastEpisode();
+    head('Протокол обострения',
+         'Силовое на паузе до ' + fmtShort(S.pauseUntil),
+         'Первые сутки — ходьба вдвое меньше обычного, кусками по 10–15 минут, не лежать. Дыхание и кошка-корова на малой амплитуде можно. Кардио 48 часов нет.', 'stop');
+    if (le && le.lvl === 'rad'){
+      why('<b>Боль отдаёт ниже ягодицы, онемение или слабость — это повод для очного осмотра.</b> Онемение в промежности, проблемы с мочеиспусканием или быстро нарастающая слабость в ноге — сегодня же в приёмный покой.');
+    }
+    why('Возврат — на стартовую дозу, приложение уже её выставило. Эпизод дольше 10 дней — очный осмотр.');
 
   } else {
     head('Стоп',
@@ -856,15 +960,16 @@ function applyVerdict(){
   return 'Доза без изменений';
 }
 
-function addSkip(){
+function addSkip(label){
+  var lbl = (typeof label === 'string') ? label : 'пропуск — силовое отменено';
   var gv = (S.gate && S.gate.date === today()) ? S.gate.value : 2;
   S.sessions.push({
     n: S.sessions.length + 1, date: today(), type: 'skip', pre: gv,
-    dose: 'пропуск — силовое отменено',
+    dose: lbl,
     during: null, after: null, fear: null, note: '', morning: null
   });
   S.gate = null;
-  saveState().then(function(){ render(); toast('Пропуск записан'); });
+  saveState().then(function(){ render(); toast(lbl === 'минимальный вариант' ? 'Минимальный вариант записан' : 'Пропуск записан'); });
 }
 
 function verdictSentence(){
@@ -1022,7 +1127,17 @@ function render(){
            (has(s.fear) ? ' · настороженность ' + s.fear : '') +
            (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
     }
-    box.innerHTML = h + '</table>';
+    var extra = '';
+    if (S.episodes && S.episodes.length){
+      var LV = {low:'до 3/10', high:'от 4/10', rad:'с отдачей / онемением'};
+      extra += '<div class="lbl" style="margin-top:14px">Эпизоды между проверками</div><div style="font-size:13px;margin-top:4px">' +
+        S.episodes.slice(-8).reverse().map(function(e){ return fmtShort(e.date) + ' — ' + LV[e.lvl]; }).join('<br>') + '</div>';
+    }
+    if (S.weekly && S.weekly.length){
+      extra += '<div class="lbl" style="margin-top:14px">Энергия по неделям</div><div style="font-size:13px;margin-top:4px">' +
+        S.weekly.slice(-8).map(function(w){ return fmtShort(w.date) + ': ' + w.energy + (w.weighed ? '' : ' (без веса)'); }).join(' · ') + '</div>';
+    }
+    box.innerHTML = h + '</table>' + extra;
 
     Array.prototype.forEach.call(box.querySelectorAll('[data-edit]'), function(b){
       b.onclick = function(){ editIdx = Number(b.getAttribute('data-edit')); render(); };
@@ -1042,6 +1157,48 @@ function render(){
 
   renderStep();
   renderNow();
+  renderEpisode();
+  var bk = $('bkWarn');
+  if (backupDue()){
+    bk.className = 'warn on';
+    bk.textContent = (S.lastBackup ? 'Прошёл месяц с последней резервной копии.' : 'Резервной копии журнала ещё нет.') +
+      ' Открой «Перенос данных» внизу и нажми «Скачать файл журнала» — так история не пропадёт при очистке браузера.';
+  } else {
+    bk.className = 'warn';
+  }
+}
+
+function renderEpisode(){
+  var b = $('epBox');
+  b.innerHTML = '';
+  if (inPause()) return;
+  if (!epOpen){
+    var t = document.createElement('button');
+    t.className = 'linkbtn';
+    t.textContent = 'Была боль посреди дня — отметить эпизод';
+    t.onclick = function(){ epOpen = true; renderEpisode(); };
+    b.appendChild(t);
+    return;
+  }
+  var box = document.createElement('div');
+  box.className = 'card';
+  box.innerHTML = '<div class="lbl" style="margin-bottom:8px">Какой был эпизод</div>';
+  var g = document.createElement('div'); g.className = 'opts';
+  [['low',  'Несильный, до 3/10'],
+   ['high', '4/10 и выше'],
+   ['rad',  'Отдаёт ниже ягодицы, онемение или слабость']].forEach(function(o){
+    var x = document.createElement('button');
+    x.innerHTML = '<span>' + o[1] + '</span>';
+    x.onclick = function(){ recordEpisode(o[0]); };
+    g.appendChild(x);
+  });
+  box.appendChild(g);
+  var c = document.createElement('button');
+  c.className = 'linkbtn'; c.style.marginTop = '8px';
+  c.textContent = 'отмена';
+  c.onclick = function(){ epOpen = false; renderEpisode(); };
+  box.appendChild(c);
+  b.appendChild(box);
 }
 
 function renderStep(){
@@ -1149,6 +1306,7 @@ $('copy').onclick = function(){
 };
 
 $('exp').onclick = function(){
+  S.lastBackup = today(); saveState();
   var raw = JSON.stringify(S);
   $('dump').value = raw;
   copyText(raw, 'Журнал скопирован');
@@ -1170,6 +1328,7 @@ function applyState(o){
 }
 
 $('dl').onclick = function(){
+  S.lastBackup = today(); saveState();
   try{
     var blob = new Blob([JSON.stringify(S)], {type:'application/json'});
     var url = URL.createObjectURL(blob);
