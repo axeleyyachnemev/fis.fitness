@@ -253,6 +253,13 @@
     </div>
   </section>
 
+  <section class="card" id="upCard">
+    <h2>Верх тела · после основного блока</h2>
+    <div id="upNote" style="font-size:13px;color:var(--soft);margin-bottom:8px"></div>
+    <ol class="ex" id="upList"></ol>
+    <div style="margin-top:10px;font-size:13px;color:var(--soft)">Отмечай галочками — по ним приложение понимает, что верх был, и считает прогресс.</div>
+  </section>
+
   <section class="card" id="reportCard">
     <h2>Отчёт · заполнить сразу после занятия</h2>
     <div class="fields">
@@ -314,6 +321,12 @@
           <li>Новые упражнения никогда на соседних занятиях.</li>
           <li>Занятие длиннее 25 минут — сигнал, что меню пора делить иначе.</li>
           <li>Событие вне тренировки программу не меняет, только следующее занятие.</li>
+        </ul>
+        <p style="margin:12px 0 6px"><b>Верх тела</b> — отдельная очередь после основного блока: жим лёжа на полу, тяга эспандера сидя, махи в стороны сидя. Новое упражнение и любое изменение — не чаще чем раз в три чистых занятия с верхом. Сначала спина, потом верх, всё занятие — до 25 минут.</p>
+        <ul>
+          <li>Утро после занятия не чистое → следующее занятие без верха. Если после него утро чистое — причина была в верхе, напиши мне.</li>
+          <li>Обострение → два занятия только для спины.</li>
+          <li>Гантели не поднимаются с пола: со стула или с бёдер.</li>
         </ul>
       </div>
     </details>
@@ -379,7 +392,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v15</span>
+    <span class="lbl" id="ver">v16</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -588,6 +601,96 @@ function changedKey(step){
 function phaseOf(step){ return QUEUE[Math.min(step, QUEUE.length - 1)].ph; }
 
 var S = {step:0, sessions:[], gate:null, next:'A', halfStep:0, anyway:null};
+var UP_EX = {
+  fp:   {nm:'Жим гантелей лёжа на полу', tip:'Колени согнуты, стопы на полу. Ложишься с гантелями так: садишься, кладёшь их на бёдра и откатываешься на спину вместе с ними. Локти под углом около 45° к корпусу. Опускаешь 3 с до мягкого касания пола локтями, жмёшь вверх за 1 с. Поясница всё время на полу. Встаёшь в обратном порядке: гантели на бёдра, перекат в сидячее положение.'},
+  brow: {nm:'Тяга эспандера сидя', tip:'Стул со спинкой — близко к двери, крепление на уровне груди, самая лёгкая трубка. Сидишь, прижавшись к спинке, стопы на полу. Сначала сводишь лопатки, потом ведёшь локти назад вдоль корпуса до нижних рёбер, 3 с обратно. Корпус от спинки не отрывается.'},
+  lat:  {nm:'Махи гантелями в стороны сидя', tip:'Тот же стул, спина прижата к спинке. Руки чуть согнуты в локтях. Поднимаешь через стороны до уровня плеч, не выше, за 2 с, опускаешь за 3 с. Плечи к ушам не тянутся.'}
+};
+var UP_ORDER = ['fp','brow','lat'];
+var UPQUEUE = [
+  {ch:'старт: жим лёжа на полу',                      d:{fp:'2×10 · 2 кг'}},
+  {ch:'добавлена тяга эспандера сидя',                d:{fp:'2×10 · 2 кг', brow:'2×12 · самая лёгкая'}},
+  {ch:'добавлены махи в стороны сидя',                d:{fp:'2×10 · 2 кг', brow:'2×12 · самая лёгкая', lat:'2×12 · 2 кг'}},
+  {ch:'жим 2×10 → 2×12',                              d:{fp:'2×12 · 2 кг', brow:'2×12 · самая лёгкая', lat:'2×12 · 2 кг'}},
+  {ch:'тяга 2×12 → 2×15',                             d:{fp:'2×12 · 2 кг', brow:'2×15 · самая лёгкая', lat:'2×12 · 2 кг'}},
+  {ch:'махи 2×12 → 2×15',                             d:{fp:'2×12 · 2 кг', brow:'2×15 · самая лёгкая', lat:'2×15 · 2 кг'}},
+  {ch:'жим 2×12 → 2×15',                              d:{fp:'2×15 · 2 кг', brow:'2×15 · самая лёгкая', lat:'2×15 · 2 кг'}},
+  {ch:'жим: вес 3 кг, снова 2×10',                    d:{fp:'2×10 · 3 кг', brow:'2×15 · самая лёгкая', lat:'2×15 · 2 кг'}},
+  {ch:'тяга: стул на шаг дальше от двери, 2×12',      d:{fp:'2×10 · 3 кг', brow:'2×12 · на шаг дальше', lat:'2×15 · 2 кг'}},
+  {ch:'махи: вес 3 кг, снова 2×10',                   d:{fp:'2×10 · 3 кг', brow:'2×12 · на шаг дальше', lat:'2×10 · 3 кг'}},
+  {ch:'жим 3 кг: 2×10 → 2×12',                        d:{fp:'2×12 · 3 кг', brow:'2×12 · на шаг дальше', lat:'2×10 · 3 кг'}},
+  {ch:'тяга 2×12 → 2×15',                             d:{fp:'2×12 · 3 кг', brow:'2×15 · на шаг дальше', lat:'2×10 · 3 кг'}},
+  {ch:'жим 3 кг: 2×12 → 2×15',                        d:{fp:'2×15 · 3 кг', brow:'2×15 · на шаг дальше', lat:'2×10 · 3 кг'}},
+  {ch:'жим: вес 4 кг, 2×10 — конец этой очереди',     d:{fp:'2×10 · 4 кг', brow:'2×15 · на шаг дальше', lat:'2×10 · 3 кг'}}
+];
+var UP_EVERY = 3;   // изменение верха — не чаще чем раз в 3 чистых занятия с верхом
+
+function upMenu(){
+  var q = UPQUEUE[Math.min(S.upStep || 0, UPQUEUE.length - 1)], out = [];
+  UP_ORDER.forEach(function(k){ if (q.d[k]) out.push({k:k, nm:UP_EX[k].nm, dose:q.d[k], tip:UP_EX[k].tip}); });
+  return out;
+}
+function upActiveToday(){ return !((S.upHold || 0) > 0); }
+
+function applyUpper(s){
+  if (!s) return '';
+  var m = s.morning;
+  if (m >= 3){
+    S.upHold = 2; S.upSince = 0; S.upWhy = 'После обострения два занятия только для спины.';
+    return 'Верх: пауза на два занятия';
+  }
+  if (!s.upDid) return '';
+  if (m >= 1){
+    S.upHold = 1; S.upSince = 0;
+    S.upWhy = 'Утро было не чистым — одно занятие только для спины, чтобы понять, откуда это.';
+    return 'Верх: следующее занятие без него';
+  }
+  var clean = (!has(s.during) || s.during <= 1) && (!has(s.after) || s.after <= 0);
+  if (!clean){ S.upSince = 0; return ''; }
+  S.upSince = (S.upSince || 0) + 1;
+  if (S.upSince >= UP_EVERY && UPQUEUE[(S.upStep || 0) + 1]){
+    S.upStep = (S.upStep || 0) + 1; S.upSince = 0;
+    return 'Верх: ' + UPQUEUE[S.upStep].ch;
+  }
+  return '';
+}
+
+function exItem(list, e, store){
+  var li = document.createElement('li');
+  if (store[e.k]) li.className = 'done';
+  var row = document.createElement('div'); row.className = 'row';
+  var cb = document.createElement('input');
+  cb.type = 'checkbox'; cb.checked = !!store[e.k];
+  cb.setAttribute('aria-label', e.nm);
+  cb.onchange = function(){ store[e.k] = cb.checked; li.className = cb.checked ? 'done' : ''; };
+  var g = document.createElement('div'); g.className = 'grow';
+  g.innerHTML = '<span class="nm">' + esc(e.nm) + '</span> <span class="dose">' + esc(e.dose) + '</span>';
+  var tb = document.createElement('button'); tb.className = 'tipbtn'; tb.textContent = 'техника';
+  var tp = document.createElement('div'); tp.className = 'tip'; tp.textContent = e.tip;
+  tb.onclick = function(){
+    tp.className = (tp.className.indexOf('on') > -1) ? 'tip' : 'tip on';
+    tb.textContent = (tp.className.indexOf('on') > -1) ? 'скрыть' : 'техника';
+  };
+  g.appendChild(document.createElement('br')); g.appendChild(tb); g.appendChild(tp);
+  row.appendChild(cb); row.appendChild(g); li.appendChild(row); list.appendChild(li);
+}
+
+function renderUpper(){
+  var list = $('upList'), note = $('upNote');
+  list.innerHTML = '';
+  if (!upActiveToday()){
+    note.innerHTML = '<b>Сегодня без верха.</b> ' + esc(S.upWhy || 'Занятие только для спины.');
+    return;
+  }
+  var st = S.upStep || 0, q = UPQUEUE[Math.min(st, UPQUEUE.length - 1)];
+  var left = UP_EVERY - (S.upSince || 0);
+  var word = left === 1 ? 'чистое занятие' : 'чистых занятия';
+  note.textContent = 'Шаг ' + (st + 1) + ' из ' + UPQUEUE.length + ' · ' + q.ch +
+    (UPQUEUE[st + 1] ? ' · следующее изменение через ' + left + ' ' + word : '');
+  upMenu().forEach(function(e){ exItem(list, e, upChecked); });
+}
+
+var upChecked = {};
 var checked = {};
 var editIdx = null;
 
@@ -610,6 +713,9 @@ function load(){
     if (S.next !== 'A' && S.next !== 'B') S.next = 'A';
     if (typeof S.halfStep !== 'number') S.halfStep = 0;
     if (!S.episodes) S.episodes = [];
+    if (typeof S.upStep !== 'number') S.upStep = 0;
+    if (typeof S.upSince !== 'number') S.upSince = 0;
+    if (typeof S.upHold !== 'number') S.upHold = 0;
     if (!S.weekly) S.weekly = [];
     if (typeof S.base === 'number'){
       // старый формат: абсолютная шкала 0–10 с настраиваемым фоном → относительные уровни 0–3
@@ -734,8 +840,10 @@ function recordEpisode(lvl){
   var msg;
   if (lvl === 'low'){
     msg = 'Эпизод записан — следующая доза постоит';
+    S.upSince = 0;
   } else {
     S.step = 0; S.next = 'A'; S.halfStep = 6;
+    S.upHold = 2; S.upSince = 0; S.upWhy = 'После обострения два занятия только для спины.';
     S.pauseUntil = addDays(today(), 3);
     S.gate = null;
     msg = 'Протокол обострения включён';
@@ -823,6 +931,8 @@ function renderNow(){
     opts(function(v){
       sit.s.morning = v;
       var msg = applyVerdict();
+      var um = applyUpper(sit.s);
+      if (um) msg += ' · ' + um;
       saveState().then(function(){ render(); toast(msg); });
     });
     why('<b>Это единственный ответ, который меняет нагрузку.</b> Отвечай сразу после подъёма, до того как расходишься.');
@@ -919,6 +1029,7 @@ function renderNow(){
 
   $('doseCard').className = 'card' + (canTrain ? '' : ' muted');
   $('reportCard').className = 'card' + (canTrain ? '' : ' muted');
+  $('upCard').className = 'card' + (canTrain ? '' : ' muted');
 }
 
 function applyVerdict(){
@@ -1072,28 +1183,7 @@ function render(){
 
   var list = $('exList');
   list.innerHTML = '';
-  menu(S.step).forEach(function(e){
-    var li = document.createElement('li');
-    if (checked[e.k]) li.className = 'done';
-    var row = document.createElement('div'); row.className = 'row';
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = !!checked[e.k];
-    cb.setAttribute('aria-label', e.nm);
-    cb.onchange = function(){ checked[e.k] = cb.checked; li.className = cb.checked ? 'done' : ''; };
-    var g = document.createElement('div'); g.className = 'grow';
-    g.innerHTML = '<span class="nm">' + esc(e.nm) + '</span> <span class="dose">' + esc(e.dose) + '</span>';
-    var tb = document.createElement('button'); tb.className = 'tipbtn'; tb.textContent = 'техника';
-    var tp = document.createElement('div'); tp.className = 'tip'; tp.textContent = e.tip;
-    tb.onclick = function(){
-      tp.className = (tp.className.indexOf('on') > -1) ? 'tip' : 'tip on';
-      tb.textContent = (tp.className.indexOf('on') > -1) ? 'скрыть' : 'техника';
-    };
-    g.appendChild(document.createElement('br'));
-    g.appendChild(tb);
-    g.appendChild(tp);
-    row.appendChild(cb); row.appendChild(g); li.appendChild(row); list.appendChild(li);
-  });
+  menu(S.step).forEach(function(e){ exItem(list, e, checked); });
 
   var box = $('logBox');
   if (!S.sessions.length){
@@ -1125,6 +1215,7 @@ function render(){
            '<td style="text-align:right"><button class="mini" data-copy="' + j + '">копия</button></td></tr>';
       h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.full || s.dose) +
            (has(s.fear) ? ' · настороженность ' + s.fear : '') +
+           (s.up ? ' · верх: ' + esc(s.up) : '') +
            (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
     }
     var extra = '';
@@ -1156,6 +1247,7 @@ function render(){
   }
 
   renderStep();
+  renderUpper();
   renderNow();
   renderEpisode();
   var bk = $('bkWarn');
@@ -1238,6 +1330,7 @@ function copySession(idx){
     'Занятие №' + s.n + ' — ' + s.date + '\n' +
     'Утро перед занятием: ' + shortOf(s.pre) + '\n' +
     'Сделано: ' + (s.full || s.dose) + '\n' +
+    (s.up ? 'Верх: ' + s.up + (s.upTotal ? ' (отмечено ' + s.upDone + ' из ' + s.upTotal + ')' : '') + '\n' : '') +
     (has(s.done) ? 'Отмечено: ' + s.done + ' из ' + s.total + '\n' : '') +
     'Во время: ' + num(s.during) + '/10\n' +
     'Через час: ' + num(s.after) + '/10\n' +
@@ -1282,6 +1375,10 @@ $('save').onclick = function(){
     full: menu(S.step).map(function(e){ return e.nm + ' ' + e.dose; }).join(' · '),
     done: menu(S.step).filter(function(e){ return checked[e.k]; }).length,
     total: menu(S.step).length,
+    up: upActiveToday() ? upMenu().map(function(e){ return e.nm + ' ' + e.dose; }).join(' · ') : 'без верха',
+    upDone: upActiveToday() ? upMenu().filter(function(e){ return upChecked[e.k]; }).length : 0,
+    upTotal: upActiveToday() ? upMenu().length : 0,
+    upDid: upActiveToday() && upMenu().some(function(e){ return upChecked[e.k]; }),
     during: val('fDuring'),
     after: val('fAfter'),
     fear: val('fFear'),
@@ -1290,10 +1387,12 @@ $('save').onclick = function(){
     introduced: isNewExercise(S.step)
   });
   S.gate = null;
+  if ((S.upHold || 0) > 0){ S.upHold--; if (!S.upHold) S.upWhy = ''; }
   S.next = (blockNow() === 'A') ? 'B' : 'A';
   saveState().then(function(){
     ['fDuring','fAfter','fFear','fNote'].forEach(function(i){ $(i).value = ''; });
     checked = {};
+    upChecked = {};
     render();
     window.scrollTo(0, 0);
     toast('Сохранено. Утреннюю проверку — завтра');
