@@ -141,6 +141,8 @@
   button.mini:hover{border-color:var(--ink)}
   button.mini:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   button.mini.ask{color:var(--soft);border-style:dashed}
+  button.mini.on{background:var(--ink);color:var(--onink);border-color:var(--ink)}
+  .badge{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--onink);background:var(--accent);border-radius:2px;padding:1px 6px;margin-left:6px;vertical-align:2px;white-space:nowrap}
   .opts{display:grid;grid-template-columns:1fr;gap:7px}
   @media (min-width:520px){.opts{grid-template-columns:1fr 1fr}}
   .opts button{
@@ -218,6 +220,7 @@
 
   <section class="now" id="nowCard"></section>
   <div id="epBox" style="margin-top:8px"></div>
+  <div id="wkBox"></div>
 
   <details class="card howto" id="howto">
     <summary>Как это работает — четыре шага</summary>
@@ -228,7 +231,7 @@
         <li><b>На следующее утро</b> отвечаешь, как спина перенесла вчерашнее занятие. <b>Это единственный ответ, который меняет нагрузку.</b> Раньше чем через сутки он ничего не покажет, поэтому приложение и не спрашивает его в тот же день.</li>
         <li><b>Приложение решает само</b>: усложнить, повторить ту же дозу или снизить. Тебе остаётся сделать то, что написано наверху.</li>
       </ol>
-      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: вт, чт, сб. Понедельник свободен.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: через день, понедельник — всегда отдых. Сам по себе этот ритм ложится на вт, чт, сб; если занятие сдвинулось или пропущено, приложение пересчитает следующее.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Боль посреди дня.</b> Если между проверками случился эпизод — нажми «Отметить эпизод» под верхней карточкой. Несильный — доза просто постоит. От 4/10 — приложение само включит протокол обострения.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Воскресенье.</b> Одна минута: взвеситься и внести вес в Garmin, оценить энергию за неделю.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)">Два утренних вопроса легко перепутать. Разница простая: первый спрашивает «что со мной сейчас», второй — «что сделало вчерашнее занятие». Приложение всегда показывает только один из них, тот, который сегодня уместен.</p>
@@ -247,6 +250,7 @@
 
   <section class="card" id="doseCard">
     <h2 id="doseTitle">Занятие · что делать сегодня</h2>
+    <div id="progLine" style="font-size:13px;color:var(--soft);margin:-4px 0 10px"></div>
     <ol class="ex" id="exList"></ol>
     <div style="margin-top:12px;font-size:13px;color:var(--soft)">
       Плюс ходьба отдельно от занятия: 7 000–10 000 шагов.
@@ -264,10 +268,10 @@
     <h2>Отчёт · заполнить сразу после занятия</h2>
     <div class="fields">
       <div class="f"><label class="lbl" for="fDate">Дата</label><input id="fDate" type="date"></div>
-      <div class="f"><label class="lbl" for="fDuring">Во время 0–10</label><input id="fDuring" type="number" min="0" max="10" inputmode="numeric"></div>
-      <div class="f"><label class="lbl" for="fAfter">Через час 0–10</label><input id="fAfter" type="number" min="0" max="10" inputmode="numeric"></div>
-      <div class="f"><label class="lbl" for="fFear">Настороженность 0–10</label><input id="fFear" type="number" min="0" max="10" inputmode="numeric"></div>
     </div>
+    <div class="f" style="margin-top:12px"><div class="lbl">Во время</div><div class="inline-scale" id="pDuring" style="margin-top:6px"></div></div>
+    <div class="f" style="margin-top:12px"><div class="lbl">Через час — можно отметить позже, в верхней карточке</div><div class="inline-scale" id="pAfter" style="margin-top:6px"></div></div>
+    <div class="f" style="margin-top:12px"><div class="lbl">Настороженность</div><div class="inline-scale" id="pFear" style="margin-top:6px"></div></div>
     <div class="f" style="margin-top:10px">
       <label class="lbl" for="fNote">Вне тренировки — шаги, сон, резкие движения</label>
       <textarea id="fNote" placeholder="6 400 шагов, сон 6 ч, час просидел в машине"></textarea>
@@ -277,7 +281,7 @@
       <button class="act ghost" id="copy">Скопировать для чата</button>
     </div>
     <div style="margin-top:10px;font-size:13px;color:var(--soft)">
-      После сохранения занятие ждёт утреннюю проверку. Она откроется наверху завтра утром — сегодня её не будет.
+      Сохраняй сразу после занятия. «Через час» отметишь потом наверху, утренняя проверка откроется завтра.
     </div>
   </section>
 
@@ -344,7 +348,7 @@
         <li><b>24–72 ч.</b> Ходьба возвращается к обычному объёму по самочувствию. Силовое всё ещё стоп, пока при движении больше 2/10.</li>
         <li><b>Возврат.</b> Заходишь на стартовую дозу Фазы 0 — она с доказанной переносимостью. Приложение откатывает туда само.</li>
         <li><b>Половинный шаг.</b> Первые шесть занятий после возврата доза добавляется вдвое реже — через два разрешения вместо одного. Приложение считает это само.</li>
-        <li><b>Расписание.</b> Три занятия в неделю: вт, чт, сб. Два силовых подряд — нет.</li>
+        <li><b>Расписание.</b> Через день, понедельник — отдых. Два силовых подряд — нет.</li>
         <li>Возврат к прежнему уровню занимает 1–2 недели, а не месяц. К нулю программа не откатывается.</li>
         <li>Эпизод дольше 10 дней, или появились симптомы ниже ягодицы, онемение, покалывание, слабость — очный осмотр.</li>
       </ul></div>
@@ -392,7 +396,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v16</span>
+    <span class="lbl" id="ver">v17</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -509,11 +513,28 @@ var BLOCK = {
 
 var DAYS   = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
 var DAYS_S = ['вс','пн','вт','ср','чт','пт','сб'];
-var TRAIN_DAYS = [2, 4, 6];   // вт, чт, сб
+var REST_WEEKDAYS = [1];   // понедельник — всегда отдых
 
+// Занятие возможно, если с последнего прошёл хотя бы один полный день отдыха
+// и это не понедельник. Ритм вт/чт/сб складывается из этих правил сам.
 function isTrainDay(d){
-  var n = (d || new Date()).getDay();
-  return TRAIN_DAYS.indexOf(n) >= 0;
+  d = d || new Date();
+  if (REST_WEEKDAYS.indexOf(d.getDay()) >= 0) return false;
+  var last = lastSessionDate();
+  if (!last) return true;
+  return daysBetween(last, isoOf(d)) >= 2;
+}
+function restReason(){
+  var last = lastSessionDate();
+  if (last && daysBetween(last, today()) === 1) return 'yesterday';
+  if (REST_WEEKDAYS.indexOf(new Date().getDay()) >= 0) return 'monday';
+  return 'other';
+}
+function plural(n, one, few, many){
+  var a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return one;
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+  return many;
 }
 function nextTrainDay(){
   var d = new Date();
@@ -649,13 +670,40 @@ function applyUpper(s){
   if (!clean){ S.upSince = 0; return ''; }
   S.upSince = (S.upSince || 0) + 1;
   if (S.upSince >= UP_EVERY && UPQUEUE[(S.upStep || 0) + 1]){
-    S.upStep = (S.upStep || 0) + 1; S.upSince = 0;
+    S.upStep = (S.upStep || 0) + 1; S.upSince = 0; S.upChangedAt = today();
     return 'Верх: ' + UPQUEUE[S.upStep].ch;
   }
   return '';
 }
 
-function exItem(list, e, store){
+function badgeFor(key){
+  if (!S.changedAt) return '';
+  var ls = lastSessionDate();
+  if (ls && ls >= S.changedAt) return '';
+  if (changedKey(S.step) !== key) return '';
+  var prev = S.step > 0 ? QUEUE[S.step - 1].d : {};
+  return prev[key] ? '↑ изменено' : 'новое';
+}
+function upBadgeFor(key){
+  if (!S.upChangedAt) return '';
+  var ls = lastSessionDate();
+  if (ls && ls >= S.upChangedAt) return '';
+  var st = S.upStep || 0;
+  if (st < 1) return '';
+  var a = UPQUEUE[st - 1].d, b = UPQUEUE[st].d;
+  if (a[key] === b[key]) return '';
+  return a[key] ? '↑ изменено' : 'новое';
+}
+function progressText(){
+  if (phaseOf(S.step) === 0){
+    var n = (10 - S.step) + Math.floor((S.halfStep || 0) / 2);
+    return 'Фаза 0 · шаг ' + (S.step + 1) + ' из 10 · до Фазы 1 ≈ ' + n + ' ' +
+      plural(n, 'чистое занятие', 'чистых занятия', 'чистых занятий') + ' (~' + Math.ceil(n / 3) + ' нед.)';
+  }
+  return 'Фаза 1 · шаг ' + (S.step - 9) + ' из 20';
+}
+
+function exItem(list, e, store, badge){
   var li = document.createElement('li');
   if (store[e.k]) li.className = 'done';
   var row = document.createElement('div'); row.className = 'row';
@@ -664,7 +712,8 @@ function exItem(list, e, store){
   cb.setAttribute('aria-label', e.nm);
   cb.onchange = function(){ store[e.k] = cb.checked; li.className = cb.checked ? 'done' : ''; };
   var g = document.createElement('div'); g.className = 'grow';
-  g.innerHTML = '<span class="nm">' + esc(e.nm) + '</span> <span class="dose">' + esc(e.dose) + '</span>';
+  g.innerHTML = '<span class="nm">' + esc(e.nm) + '</span> <span class="dose">' + esc(e.dose) + '</span>' +
+    (badge ? '<span class="badge">' + badge + '</span>' : '');
   var tb = document.createElement('button'); tb.className = 'tipbtn'; tb.textContent = 'техника';
   var tp = document.createElement('div'); tp.className = 'tip'; tp.textContent = e.tip;
   tb.onclick = function(){
@@ -687,7 +736,26 @@ function renderUpper(){
   var word = left === 1 ? 'чистое занятие' : 'чистых занятия';
   note.textContent = 'Шаг ' + (st + 1) + ' из ' + UPQUEUE.length + ' · ' + q.ch +
     (UPQUEUE[st + 1] ? ' · следующее изменение через ' + left + ' ' + word : '');
-  upMenu().forEach(function(e){ exItem(list, e, upChecked); });
+  upMenu().forEach(function(e){ exItem(list, e, upChecked, upBadgeFor(e.k)); });
+}
+
+var fDuringV = null, fAfterV = null, fFearV = null;
+function picker(id, max, plus, get, set){
+  var box = $(id); box.innerHTML = '';
+  for (var v = 0; v <= max; v++){
+    (function(v){
+      var b = document.createElement('button');
+      b.className = 'mini' + (get() === v ? ' on' : '');
+      b.textContent = (plus && v === max) ? v + '+' : String(v);
+      b.onclick = function(){ set(get() === v ? null : v); renderPickers(); };
+      box.appendChild(b);
+    })(v);
+  }
+}
+function renderPickers(){
+  picker('pDuring', 4, true,  function(){ return fDuringV; }, function(v){ fDuringV = v; });
+  picker('pAfter',  4, true,  function(){ return fAfterV;  }, function(v){ fAfterV  = v; });
+  picker('pFear',  10, false, function(){ return fFearV;   }, function(v){ fFearV   = v; });
 }
 
 var upChecked = {};
@@ -876,7 +944,12 @@ function situation(){
   if (pending && pending.date < t) return {k:'morning', s:pending};
   if (pending) return {k:'wait', s:pending};
   if (inPause()) return {k:'pause'};
-  if (!isTrainDay() && !(S.anyway && S.anyway === today())) return {k:'off'};
+  var lastE = S.sessions.length ? S.sessions[S.sessions.length - 1] : null;
+  if (lastE && lastE.type === 'skip' && lastE.date === t) return {k:'skipped', s:lastE};
+  if (!isTrainDay()){
+    var rr = restReason();
+    if (rr === 'yesterday' || S.anyway !== today()) return {k:'off', why: rr};
+  }
   if (gv === null || gv === undefined) return {k:'gate'};
   if (gv <= 1) return {k:'train', gv:gv};
   if (gv === 2) return {k:'walk', gv:gv};
@@ -897,6 +970,23 @@ function renderNow(){
                   (body ? '<p>' + body + '</p>' : '');
     box.appendChild(d);
     return d;
+  }
+  function afterRow(title, ss){
+    var d = document.createElement('div');
+    d.className = 'why';
+    d.innerHTML = title;
+    box.appendChild(d);
+    var r = document.createElement('div');
+    r.className = 'inline-scale'; r.style.marginTop = '8px';
+    for (var av = 0; av <= 4; av++){
+      (function(v){
+        var b = document.createElement('button');
+        b.className = 'mini'; b.textContent = v === 4 ? '4+' : String(v);
+        b.onclick = function(){ ss.after = v; saveState().then(function(){ render(); toast('Через час: ' + (v === 4 ? '4+' : v)); }); };
+        r.appendChild(b);
+      })(av);
+    }
+    box.appendChild(r);
   }
   function why(t){
     var d = document.createElement('div');
@@ -928,6 +1018,7 @@ function renderNow(){
     head('Вопрос второй · после занятия',
          'Как спина сегодня утром?',
          'Занятие №' + sit.s.n + ' было ' + sit.s.date + '. Прошли сутки — теперь видно, как спина его перенесла.');
+    if (!has(sit.s.after)) afterRow('Вчера не отмечено «через час». Если помнишь — отметь, если нет — пропусти.', sit.s);
     opts(function(v){
       sit.s.morning = v;
       var msg = applyVerdict();
@@ -940,49 +1031,31 @@ function renderNow(){
   } else if (sit.k === 'wait'){
     head('Сделано',
          'На сегодня всё',
-         'Занятие №' + sit.s.n + ' сохранено. Проверка откроется завтра утром.');
-    why('Раньше чем через сутки она ничего не покажет — реакция у тебя приходит на следующий день. Поэтому сегодня приложение её и не спрашивает.');
+         'Занятие №' + sit.s.n + ' сохранено. Утренняя проверка откроется завтра.');
+    if (!has(sit.s.after)){
+      afterRow('<b>Через час после занятия</b> — как спина?', sit.s);
+    } else {
+      why('Через час: ' + (sit.s.after >= 4 ? '4+' : sit.s.after) + '. Раньше чем через сутки утренняя проверка ничего не покажет — поэтому сегодня приложение её и не спрашивает.');
+    }
+
+  } else if (sit.k === 'skipped'){
+    var nx2 = nextTrainDay();
+    head('Записано', 'Сегодня без силового',
+         (sit.s.dose === 'минимальный вариант' ? 'Минимальный вариант записан.' : 'Пропуск записан.') +
+         ' Доза в программе не изменилась. Следующее занятие — ' + nx2.name + (nx2.days === 1 ? ', завтра' : ', через ' + nx2.days + ' дн.') + ', если утро будет в норме.');
 
   } else if (sit.k === 'off'){
     var nx = nextTrainDay();
-    head('Сегодня ' + DAYS[new Date().getDay()],
-         'День без занятия',
-         'Силовое по расписанию во вторник, четверг и субботу. Следующее — в ' + nx.name +
-         (nx.days === 1 ? ' (завтра)' : ' (через ' + nx.days + ' дн.)') + '.');
-    bar([btn('Всё равно заниматься', true, function(){
-      S.anyway = today();
-      saveState().then(render);
-    })]);
-    why('Ходьба сегодня как обычно. Кардио — по своему графику, оно от этого расписания не зависит.');
-    if (weeklyDue()){
-      var wb = document.createElement('div');
-      wb.className = 'why';
-      wb.innerHTML = '<b>Воскресная проверка — одна минута.</b><br>1. Встань на весы утром, натощак, и внеси вес в Garmin Connect.<br>2. Оцени энергию за прошедшую неделю, от 1 до 10.';
-      box.appendChild(wb);
-      var lab = document.createElement('label');
-      lab.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px';
-      var wcb = document.createElement('input'); wcb.type = 'checkbox';
-      wcb.style.cssText = 'width:19px;height:19px;accent-color:var(--accent)';
-      lab.appendChild(wcb);
-      lab.appendChild(document.createTextNode('вес внесён в Garmin'));
-      box.appendChild(lab);
-      var row = document.createElement('div');
-      row.className = 'inline-scale'; row.style.marginTop = '10px';
-      for (var ev = 1; ev <= 10; ev++){
-        (function(v){
-          var eb = document.createElement('button');
-          eb.className = 'mini'; eb.textContent = v;
-          eb.setAttribute('aria-label', 'Энергия ' + v + ' из 10');
-          eb.onclick = function(){
-            if (!S.weekly) S.weekly = [];
-            S.weekly.push({date: today(), energy: v, weighed: !!wcb.checked});
-            saveState().then(function(){ render(); toast('Неделя записана'); });
-          };
-          row.appendChild(eb);
-        })(ev);
-      }
-      box.appendChild(row);
+    var whenTxt = nx.name + (nx.days === 1 ? ', завтра' : ', через ' + nx.days + ' дн.');
+    if (sit.why === 'yesterday'){
+      head('Сегодня отдых', 'Вчера было занятие',
+           'Два силовых подряд нельзя — это единственное жёсткое правило. Следующее занятие — ' + whenTxt + '.');
+    } else {
+      head('Сегодня ' + DAYS[new Date().getDay()], 'День без занятия',
+           'Понедельник — всегда отдых. Следующее занятие — ' + whenTxt + '.');
+      bar([btn('Всё равно заниматься', true, function(){ S.anyway = today(); saveState().then(render); })]);
     }
+    why('Ходьба сегодня как обычно. Кардио — по своему графику, от этого расписания оно не зависит.');
 
   } else if (sit.k === 'gate'){
     head('Вопрос первый · перед занятием',
@@ -1053,6 +1126,7 @@ function applyVerdict(){
       }
     }
     S.step++;
+    S.changedAt = today();
     return 'Доза усложнена: ' + QUEUE[S.step].ch;
   }
   if (vd.v === 'ОБОСТРЕНИЕ'){
@@ -1060,6 +1134,7 @@ function applyVerdict(){
     S.step = 0;
     S.next = 'A';
     S.halfStep = 6;   // 6 занятий половинным шагом после возврата
+    S.changedAt = null;
     return 'Обострение — возврат на стартовую дозу';
   }
   if (vd.v === 'СНИЖАЮ'){
@@ -1138,7 +1213,7 @@ function render(){
       '<li>Гнаться за объёмом: если занятие стало длиннее 25 минут — скажи, разделим иначе.</li>' +
       '</ul>';
 
-  $('phaseNote').textContent = todayLabel() + ' · занятия вт, чт, сб';
+  $('phaseNote').textContent = todayLabel() + ' · ' + (isTrainDay() ? 'день занятия' : 'отдых · следующее — ' + nextTrainDay().name);
   if (false) $('phaseNote').textContent = S.step === 0
     ? '3 занятия в неделю · стартовая доза'
     : '3 занятия в неделю · последнее изменение: ' + QUEUE[S.step].ch;
@@ -1183,7 +1258,8 @@ function render(){
 
   var list = $('exList');
   list.innerHTML = '';
-  menu(S.step).forEach(function(e){ exItem(list, e, checked); });
+  menu(S.step).forEach(function(e){ exItem(list, e, checked, badgeFor(e.k)); });
+  $('progLine').textContent = progressText();
 
   var box = $('logBox');
   if (!S.sessions.length){
@@ -1250,6 +1326,8 @@ function render(){
   renderUpper();
   renderNow();
   renderEpisode();
+  renderWeekly();
+  renderPickers();
   var bk = $('bkWarn');
   if (backupDue()){
     bk.className = 'warn on';
@@ -1258,6 +1336,39 @@ function render(){
   } else {
     bk.className = 'warn';
   }
+}
+
+function renderWeekly(){
+  var b = $('wkBox');
+  b.innerHTML = '';
+  if (!weeklyDue()) return;
+  var c = document.createElement('div');
+  c.className = 'card'; c.style.marginTop = '10px';
+  c.innerHTML = '<div class="lbl" style="margin-bottom:6px">Воскресная проверка · одна минута</div>' +
+    '<div style="font-size:14px">1. Встань на весы утром, натощак, и внеси вес в Garmin Connect.<br>2. Оцени энергию за прошедшую неделю, от 1 до 10.</div>';
+  var lab = document.createElement('label');
+  lab.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px';
+  var wcb = document.createElement('input'); wcb.type = 'checkbox';
+  wcb.style.cssText = 'width:19px;height:19px;accent-color:var(--accent)';
+  lab.appendChild(wcb); lab.appendChild(document.createTextNode('вес внесён в Garmin'));
+  c.appendChild(lab);
+  var row = document.createElement('div');
+  row.className = 'inline-scale'; row.style.marginTop = '10px';
+  for (var ev = 1; ev <= 10; ev++){
+    (function(v){
+      var eb = document.createElement('button');
+      eb.className = 'mini'; eb.textContent = v;
+      eb.setAttribute('aria-label', 'Энергия ' + v + ' из 10');
+      eb.onclick = function(){
+        if (!S.weekly) S.weekly = [];
+        S.weekly.push({date: today(), energy: v, weighed: !!wcb.checked});
+        saveState().then(function(){ render(); toast('Неделя записана'); });
+      };
+      row.appendChild(eb);
+    })(ev);
+  }
+  c.appendChild(row);
+  b.appendChild(c);
 }
 
 function renderEpisode(){
@@ -1379,9 +1490,9 @@ $('save').onclick = function(){
     upDone: upActiveToday() ? upMenu().filter(function(e){ return upChecked[e.k]; }).length : 0,
     upTotal: upActiveToday() ? upMenu().length : 0,
     upDid: upActiveToday() && upMenu().some(function(e){ return upChecked[e.k]; }),
-    during: val('fDuring'),
-    after: val('fAfter'),
-    fear: val('fFear'),
+    during: fDuringV,
+    after: fAfterV,
+    fear: fFearV,
     note: $('fNote').value.replace(/^\s+|\s+$/g, ''),
     morning: null,
     introduced: isNewExercise(S.step)
@@ -1390,7 +1501,7 @@ $('save').onclick = function(){
   if ((S.upHold || 0) > 0){ S.upHold--; if (!S.upHold) S.upWhy = ''; }
   S.next = (blockNow() === 'A') ? 'B' : 'A';
   saveState().then(function(){
-    ['fDuring','fAfter','fFear','fNote'].forEach(function(i){ $(i).value = ''; });
+    $('fNote').value = ''; fDuringV = null; fAfterV = null; fFearV = null;
     checked = {};
     upChecked = {};
     render();
