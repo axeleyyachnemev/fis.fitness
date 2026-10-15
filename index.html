@@ -171,7 +171,7 @@
   details summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none}
   details summary::-webkit-details-marker{display:none}
   details summary::before{content:"+ ";font-family:var(--mono);color:var(--accent)}
-  details[open] summary::before{content:"\2212 "}
+  details[open] summary::before{content:"\2212\00a0"}
   details .in{font-size:14px;padding-top:9px}
   details .in ul{margin:6px 0;padding-left:18px}
   details .in li{margin:3px 0}
@@ -199,6 +199,12 @@
   .vline{display:flex;gap:10px;align-items:baseline;font-size:14px}
   .vline b{font-family:var(--mono);font-size:13px;letter-spacing:.06em;flex:none}
   .toast.on{opacity:1}
+  .notes{padding:12px 16px;margin-top:8px}
+  .notes summary{padding:0}
+  .notes textarea{width:100%;margin-top:10px;font-family:var(--sans);font-size:15px;line-height:1.5;color:var(--ink);
+    border:1px solid var(--rule);border-radius:2px;padding:9px 10px;background:var(--card);resize:none;min-height:150px;overflow:hidden}
+  .notes textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  .notes .st{font-family:var(--mono);font-size:11px;color:var(--soft);margin-top:6px;min-height:14px}
   @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 </head>
@@ -221,6 +227,14 @@
   <section class="now" id="nowCard"></section>
   <div id="epBox" style="margin-top:8px"></div>
   <div id="wkBox"></div>
+
+  <details class="card howto notes" id="notesBox">
+    <summary>Custom exercises</summary>
+    <textarea id="notesTx" aria-label="Custom exercises" placeholder="По строке на пункт, например:
+Разминка: повороты головы — 5 в каждую сторону
+Дыхание: вдох на 4, выдох на 6 — 5 минут"></textarea>
+    <div class="st" id="notesSt">Сохраняется само, пока пишешь. Нажми на заголовок — свернётся в строку.</div>
+  </details>
 
   <details class="card howto" id="howto">
     <summary>Как это работает — четыре шага</summary>
@@ -396,7 +410,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v17</span>
+    <span class="lbl" id="ver">v19</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -776,7 +790,26 @@ function saveState(){ return Store.set(KEY, JSON.stringify(S)); }
 function load(){
   return Store.get(KEY).then(function(raw){
     if (raw){ try{ S = JSON.parse(raw); }catch(e){} }
+    normalize();
+
+    if (Store.mode === 'claude'){
+      $('mode').textContent = 'Сохраняется в чате';
+    } else if (Store.mode === 'local'){
+      $('mode').textContent = 'Сохраняется в этом браузере';
+    } else {
+      $('mode').textContent = 'Без сохранения';
+      $('warn').className = 'warn on';
+      $('warn').textContent = 'Этой странице запрещено хранить данные — журнал исчезнет при закрытии. Это и есть причина, по которой утренние цифры пропадали. Открой файл через «Загрузки» в самом браузере, а не из файлового менеджера. Если не помогло: после каждого занятия жми «Скачать файл журнала» внизу, а при следующем открытии — «Открыть файл журнала».';
+      $('dataBlock').open = true;
+    }
+    render();
+  });
+}
+
+/* Приводит состояние к текущему формату: недостающие поля, миграция старой шкалы. */
+function normalize(){
     if (!S.sessions) S.sessions = [];
+    if (typeof S.notes !== 'string') S.notes = '';
     if (typeof S.step !== 'number') S.step = 0;
     if (S.next !== 'A' && S.next !== 'B') S.next = 'A';
     if (typeof S.halfStep !== 'number') S.halfStep = 0;
@@ -802,19 +835,6 @@ function load(){
       }
       delete S.base;
     }
-
-    if (Store.mode === 'claude'){
-      $('mode').textContent = 'Сохраняется в чате';
-    } else if (Store.mode === 'local'){
-      $('mode').textContent = 'Сохраняется в этом браузере';
-    } else {
-      $('mode').textContent = 'Без сохранения';
-      $('warn').className = 'warn on';
-      $('warn').textContent = 'Этой странице запрещено хранить данные — журнал исчезнет при закрытии. Это и есть причина, по которой утренние цифры пропадали. Открой файл через «Загрузки» в самом браузере, а не из файлового менеджера. Если не помогло: после каждого занятия жми «Скачать файл журнала» внизу, а при следующем открытии — «Открыть файл журнала».';
-      $('dataBlock').open = true;
-    }
-    render();
-  });
 }
 
 function classOf(m){
@@ -1327,6 +1347,7 @@ function render(){
   renderNow();
   renderEpisode();
   renderWeekly();
+  renderNotes();
   renderPickers();
   var bk = $('bkWarn');
   if (backupDue()){
@@ -1532,7 +1553,10 @@ $('imp').onclick = function(){
 
 function applyState(o){
   if (!o || Object.prototype.toString.call(o.sessions) !== '[object Array]') throw new Error('bad');
-  S = {step: (typeof o.step === 'number' ? o.step : 0), sessions: o.sessions, base: o.base, gate: o.gate || null};
+  // берём из файла всё: ротацию, полшага, эпизоды, верх тела, воскресные записи, заметки
+  S = o;
+  if (!S.gate) S.gate = null;
+  normalize();
   editIdx = null;
   return saveState().then(function(){ render(); });
 }
@@ -1568,11 +1592,53 @@ $('fileIn').onchange = function(){
   $('fileIn').value = '';
 };
 
+/* Свободный список на день: сворачивается в строку, сохраняется при вводе. */
+function fitNotes(){
+  var tx = $('notesTx');
+  tx.style.height = 'auto';
+  tx.style.height = Math.max(150, tx.scrollHeight + 2) + 'px';
+}
+function renderNotes(){
+  var box = $('notesBox'), tx = $('notesTx');
+  if (document.activeElement !== tx) tx.value = S.notes || '';
+  if (box.open !== !!S.notesOpen) box.open = !!S.notesOpen;
+  if (box.open) fitNotes();
+}
+var notesTimer = null;
+$('notesTx').oninput = function(){
+  S.notes = $('notesTx').value;
+  fitNotes();
+  $('notesSt').textContent = 'Пишу…';
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(flushNotes, 400);
+};
+function flushNotes(){
+  clearTimeout(notesTimer); notesTimer = null;
+  return saveState().then(function(ok){
+    $('notesSt').textContent = ok === false ? 'Не сохранилось — проверь «Перенос данных» внизу' : 'Сохранено';
+  });
+}
+$('notesTx').onblur = function(){ if (notesTimer) flushNotes(); };
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'hidden' && notesTimer) flushNotes();
+});
+$('notesBox').addEventListener('toggle', function(){
+  var open = $('notesBox').open;
+  if (open === !!S.notesOpen) return;
+  S.notesOpen = open;
+  if (open) fitNotes();
+  $('notesSt').textContent = 'Сохраняется само, пока пишешь. Нажми на заголовок — свернётся в строку.';
+  saveState();
+});
+
 $('reset').onclick = function(){
-  if (!confirm('Удалить все занятия и вернуть стартовую дозу? Отменить нельзя.')) return;
+  if (!confirm('Удалить все занятия и вернуть стартовую дозу? Отменить нельзя. Список Custom exercises останется.')) return;
+  var keepNotes = S.notes || '', keepOpen = !!S.notesOpen;
   S = {step:0, sessions:[], gate:null, next:'A', halfStep:0, anyway:null};
+  normalize();
+  S.notes = keepNotes; S.notesOpen = keepOpen;
   checked = {};
-  Store.del(KEY).then(function(){ render(); toast('Журнал очищен'); });
+  (S.notes ? saveState() : Store.del(KEY)).then(function(){ render(); toast('Журнал очищен'); });
 };
 
 load();
