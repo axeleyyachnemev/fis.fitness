@@ -246,7 +246,8 @@
         <li><b>Приложение решает само</b>: усложнить, повторить ту же дозу или снизить. Тебе остаётся сделать то, что написано наверху.</li>
       </ol>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: через день, понедельник — всегда отдых. Сам по себе этот ритм ложится на вт, чт, сб; если занятие сдвинулось или пропущено, приложение пересчитает следующее.</p>
-      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Боль посреди дня.</b> Если между проверками случился эпизод — нажми «Отметить эпизод» под верхней карточкой. Несильный — доза просто постоит. От 4/10 — приложение само включит протокол обострения.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Боль посреди дня.</b> Если между проверками случился эпизод — нажми «Отметить эпизод» под верхней карточкой. Несильный — доза просто постоит. От 4/10 — приложение включит протокол обострения и спросит причину: работа или быт — возврат на два шага назад от прежней дозы; само занятие — на стартовую дозу.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Тяжёлый день на работе.</b> Поднимал тяжёлое — отметь ссылкой под верхней карточкой. Следующее занятие пройдёт без прибавки, даже при чистом утре. Ближайшую неделю — больше ходьбы и сна.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Воскресенье.</b> Одна минута: взвеситься и внести вес в Garmin, оценить энергию за неделю.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)">Два утренних вопроса легко перепутать. Разница простая: первый спрашивает «что со мной сейчас», второй — «что сделало вчерашнее занятие». Приложение всегда показывает только один из них, тот, который сегодня уместен.</p>
     </div>
@@ -357,11 +358,11 @@
     <details>
       <summary>Обострение — первые 72 часа</summary>
       <div class="in"><ul>
-        <li><b>Отметь эпизод в приложении</b> — кнопка под верхней карточкой. От 4/10 оно само поставит паузу и откатит дозу.</li>
+        <li><b>Отметь эпизод в приложении</b> — кнопка под верхней карточкой. От 4/10 оно поставит паузу и спросит, что вызвало обострение.</li>
         <li><b>0–24 ч.</b> Силовое стоп. Кардио стоп на 48 ч. Ходьба вдвое меньше обычного, кусками по 10–15 мин. Дыхание 2×2 мин и кошка-корова 1×6 на малой амплитуде — можно. Постельного режима нет, положение менять каждые 20–30 мин.</li>
         <li><b>24–72 ч.</b> Ходьба возвращается к обычному объёму по самочувствию. Силовое всё ещё стоп, пока при движении больше 2/10.</li>
-        <li><b>Возврат.</b> Заходишь на стартовую дозу Фазы 0 — она с доказанной переносимостью. Приложение откатывает туда само.</li>
-        <li><b>Половинный шаг.</b> Первые шесть занятий после возврата доза добавляется вдвое реже — через два разрешения вместо одного. Приложение считает это само.</li>
+        <li><b>Возврат, когда при обычных движениях не больше 2/10.</b> Причина в работе или быту, а занятия до этого шли спокойно — на два шага назад от прежней дозы: её спина уже выдерживала. Причина в самом занятии или неясна — на стартовую дозу Фазы 0.</li>
+        <li><b>Половинный шаг.</b> Только после обострения от занятия: первые шесть занятий доза добавляется вдвое реже. После обострения от работы его нет — запасом служат два шага назад.</li>
         <li><b>Расписание.</b> Через день, понедельник — отдых. Два силовых подряд — нет.</li>
         <li>Возврат к прежнему уровню занимает 1–2 недели, а не месяц. К нулю программа не откатывается.</li>
         <li>Эпизод дольше 10 дней, или появились симптомы ниже ягодицы, онемение, покалывание, слабость — очный осмотр.</li>
@@ -410,7 +411,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v19</span>
+    <span class="lbl" id="ver">v20</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -818,6 +819,16 @@ function normalize(){
     if (typeof S.upSince !== 'number') S.upSince = 0;
     if (typeof S.upHold !== 'number') S.upHold = 0;
     if (!S.weekly) S.weekly = [];
+    if (!S.flare){
+      // v19 и раньше откатывали на старт, не запоминая, откуда. Восстанавливаем по последнему занятию.
+      var le0 = lastEpisode(), ls0 = lastSessionDate();
+      if (le0 && (le0.lvl === 'high' || le0.lvl === 'rad') && S.step === 0 && (!ls0 || le0.date >= ls0)){
+        var last0 = null;
+        for (var k0 = S.sessions.length - 1; k0 >= 0; k0--){ if (S.sessions[k0].type !== 'skip'){ last0 = S.sessions[k0]; break; } }
+        var from0 = stepOfSession(last0);
+        if (from0 > 0) S.flare = {date: le0.date, from: from0, cause: le0.lvl === 'rad' ? 'rad' : null};
+      }
+    }
     if (typeof S.base === 'number'){
       // старый формат: абсолютная шкала 0–10 с настраиваемым фоном → относительные уровни 0–3
       var b = S.base;
@@ -848,8 +859,10 @@ function readingOf(s){ return s.type === 'skip' ? s.pre : s.morning; }
 
 function verdictFor(){
   var ep = episodeActive();
-  if (ep && ep.lvl !== 'low') return {v:'ОБОСТРЕНИЕ', c:'c-drop', add:false,
-    n:'Был эпизод от 4/10 — протокол обострения, возврат на стартовую дозу.'};
+  if (ep && (ep.lvl === 'high' || ep.lvl === 'rad')) return {v:'ОБОСТРЕНИЕ', c:'c-drop', add:false,
+    n:'Был эпизод от 4/10 — протокол обострения.'};
+  if (ep && ep.lvl === 'heavy') return {v:'ПОВТОРЯЮ', c:'c-hold', add:false,
+    n:'Был тяжёлый день на работе — доза постоит одно занятие, даже при чистом утре.'};
   if (ep) return {v:'ПОВТОРЯЮ', c:'c-hold', add:false,
     n:'Был эпизод боли — доза стоит, пока следующее занятие не пройдёт чисто.'};
   var lastEntry = S.sessions.length ? S.sessions[S.sessions.length-1] : null;
@@ -922,6 +935,45 @@ function episodeActive(){
 }
 function inPause(){ return !!(S.pauseUntil && today() < S.pauseUntil); }
 
+/* Обострение. Откат на старт, но с запоминанием, откуда откатились:
+   если причина в работе или быту, вопрос в карточке вернёт на два шага назад. */
+function flareCurrent(){
+  if (!S.flare) return null;
+  var ls = lastSessionDate();
+  return (!ls || S.flare.date >= ls) ? S.flare : null;
+}
+function startFlare(cause){
+  var cur = flareCurrent();
+  if (cur){ if (cause === 'rad') cur.cause = 'rad'; return; }   // это обострение уже обработано
+  S.flare = {date: today(), from: S.step, cause: cause || null};
+  S.step = 0; S.next = 'A'; S.halfStep = 6; S.changedAt = null;
+}
+function setFlareCause(c){
+  var f = flareCurrent(); if (!f) return;
+  f.cause = c;
+  var msg;
+  if (c === 'life'){
+    S.step = Math.max(0, (f.from || 0) - 2);
+    S.halfStep = 0;
+    if ((S.upHold || 0) > 1){ S.upHold = 1; S.upWhy = 'После обострения одно занятие только для спины.'; }
+    msg = S.step > 0 ? 'Возврат на два шага назад' : 'Возврат на стартовую дозу';
+  } else {
+    msg = 'Возврат на стартовую дозу';
+  }
+  saveState().then(function(){ render(); toast(msg); });
+}
+function doseSummary(step, brief){
+  return menu(step).filter(function(e){ return !brief || (e.k !== 'br' && e.k !== 'cc'); })
+    .map(function(e){ return e.nm + ' ' + e.dose; }).join(' · ');
+}
+// шаг, на котором было записано занятие: по тексту дозы «Фаза 0 · <изменение>»
+function stepOfSession(x){
+  if (!x || !x.dose) return -1;
+  var ch = String(x.dose).split(' · ').slice(1).join(' · ');
+  for (var i = 0; i < QUEUE.length; i++){ if (QUEUE[i].ch === ch) return i; }
+  return -1;
+}
+
 function recordEpisode(lvl){
   if (!S.episodes) S.episodes = [];
   S.episodes.push({date: today(), lvl: lvl});
@@ -929,12 +981,14 @@ function recordEpisode(lvl){
   if (lvl === 'low'){
     msg = 'Эпизод записан — следующая доза постоит';
     S.upSince = 0;
+  } else if (lvl === 'heavy'){
+    msg = 'Тяжёлый день записан — следующая доза постоит';
   } else {
-    S.step = 0; S.next = 'A'; S.halfStep = 6;
+    startFlare(lvl === 'rad' ? 'rad' : null);
     S.upHold = 2; S.upSince = 0; S.upWhy = 'После обострения два занятия только для спины.';
     S.pauseUntil = addDays(today(), 3);
     S.gate = null;
-    msg = 'Протокол обострения включён';
+    msg = lvl === 'rad' ? 'Протокол обострения включён' : 'Протокол обострения включён — ответь, что его вызвало';
   }
   epOpen = false;
   saveState().then(function(){ render(); toast(msg); });
@@ -1110,7 +1164,15 @@ function renderNow(){
     if (le && le.lvl === 'rad'){
       why('<b>Боль отдаёт ниже ягодицы, онемение или слабость — это повод для очного осмотра.</b> Онемение в промежности, проблемы с мочеиспусканием или быстро нарастающая слабость в ноге — сегодня же в приёмный покой.');
     }
-    why('Возврат — на стартовую дозу, приложение уже её выставило. Эпизод дольше 10 дней — очный осмотр.');
+    var fc = flareCurrent();
+    if (fc && fc.cause === 'life'){
+      why('Возврат — на два шага назад от прежней дозы: ' + esc(doseSummary(S.step)) + '. Приложение уже её выставило. Начинать, когда при обычных движениях не больше 2/10.');
+    } else if (fc && fc.cause === null){
+      why('Ответь ниже, что вызвало обострение — от этого зависит, с какой дозы возвращаться.');
+    } else {
+      why('Возврат — на стартовую дозу, приложение уже её выставило. Начинать, когда при обычных движениях не больше 2/10.');
+    }
+    why('Эпизод дольше 10 дней — очный осмотр.');
 
   } else {
     head('Стоп',
@@ -1150,12 +1212,9 @@ function applyVerdict(){
     return 'Доза усложнена: ' + QUEUE[S.step].ch;
   }
   if (vd.v === 'ОБОСТРЕНИЕ'){
-    // Полный откат на стартовую дозу Фазы 0 с доказанной переносимостью.
-    S.step = 0;
-    S.next = 'A';
-    S.halfStep = 6;   // 6 занятий половинным шагом после возврата
-    S.changedAt = null;
-    return 'Обострение — возврат на стартовую дозу';
+    // Откат на стартовую дозу; если причина в работе или быту — вопрос в карточке вернёт на два шага назад.
+    startFlare(null);
+    return 'Обострение — ответь, что его вызвало';
   }
   if (vd.v === 'СНИЖАЮ'){
     var back = S.step - 2;
@@ -1316,7 +1375,7 @@ function render(){
     }
     var extra = '';
     if (S.episodes && S.episodes.length){
-      var LV = {low:'до 3/10', high:'от 4/10', rad:'с отдачей / онемением'};
+      var LV = {low:'до 3/10', high:'от 4/10', rad:'с отдачей / онемением', heavy:'тяжёлый день на работе'};
       extra += '<div class="lbl" style="margin-top:14px">Эпизоды между проверками</div><div style="font-size:13px;margin-top:4px">' +
         S.episodes.slice(-8).reverse().map(function(e){ return fmtShort(e.date) + ' — ' + LV[e.lvl]; }).join('<br>') + '</div>';
     }
@@ -1395,6 +1454,25 @@ function renderWeekly(){
 function renderEpisode(){
   var b = $('epBox');
   b.innerHTML = '';
+  var fc = flareCurrent();
+  if (fc && fc.cause === null){
+    var cq = document.createElement('div');
+    cq.className = 'card';
+    cq.innerHTML = '<div class="lbl" style="margin-bottom:6px">Обострение · что его вызвало?</div>' +
+      '<div style="font-size:13px;color:var(--soft);margin-bottom:10px">Если работа или быт, а занятия до этого проходили спокойно — вернёшься на два шага назад от прежней дозы (' +
+      esc(fc.from > 1 ? doseSummary(fc.from - 2, true) : 'стартовая доза') + '). Если само занятие или не уверен — на стартовую дозу.</div>';
+    var cg = document.createElement('div'); cg.className = 'opts';
+    [['life', 'Работа или быт — тяжести, долгий день, сон, долгое сидение'],
+     ['training', 'Само занятие или не уверен']].forEach(function(o){
+      var x = document.createElement('button');
+      x.innerHTML = '<span>' + o[1] + '</span>';
+      x.onclick = function(){ setFlareCause(o[0]); };
+      cg.appendChild(x);
+    });
+    cq.appendChild(cg);
+    b.appendChild(cq);
+    return;
+  }
   if (inPause()) return;
   if (!epOpen){
     var t = document.createElement('button');
@@ -1402,6 +1480,19 @@ function renderEpisode(){
     t.textContent = 'Была боль посреди дня — отметить эпизод';
     t.onclick = function(){ epOpen = true; renderEpisode(); };
     b.appendChild(t);
+    var le = lastEpisode();
+    if (le && le.lvl === 'heavy' && le.date === today()){
+      var hv = document.createElement('div');
+      hv.className = 'lbl'; hv.style.marginTop = '4px';
+      hv.textContent = 'Тяжёлый день записан — следующая доза постоит';
+      b.appendChild(hv);
+    } else {
+      var h = document.createElement('button');
+      h.className = 'linkbtn'; h.style.display = 'block'; h.style.marginTop = '4px';
+      h.textContent = 'Тяжёлый день на работе — отметить';
+      h.onclick = function(){ recordEpisode('heavy'); };
+      b.appendChild(h);
+    }
     return;
   }
   var box = document.createElement('div');
