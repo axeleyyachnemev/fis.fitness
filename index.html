@@ -199,6 +199,9 @@
   .vline{display:flex;gap:10px;align-items:baseline;font-size:14px}
   .vline b{font-family:var(--mono);font-size:13px;letter-spacing:.06em;flex:none}
   .toast.on{opacity:1}
+  .rate{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  .rate button.mini{padding:7px 9px}
+  .supnew{font-size:12px;color:var(--soft);margin-top:4px}
   .notes{padding:12px 16px;margin-top:8px}
   .notes summary{padding:0}
   .notes textarea{width:100%;margin-top:10px;font-family:var(--sans);font-size:15px;line-height:1.5;color:var(--ink);
@@ -247,6 +250,7 @@
       </ol>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Ротация A/B.</b> В Фазе 1 занятия чередуются: A — корпус и шарнир, B — присед, тяга, антиротация. Приложение само определяет, чей сегодня черёд, и показывает только нужные упражнения. Расписание: через день, понедельник — всегда отдых. Сам по себе этот ритм ложится на вт, чт, сб; если занятие сдвинулось или пропущено, приложение пересчитает следующее.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Боль посреди дня.</b> Если между проверками случился эпизод — нажми «Отметить эпизод» под верхней карточкой. Несильный — доза просто постоит. От 4/10 — приложение включит протокол обострения и спросит причину: работа или быт — возврат на два шага назад от прежней дозы; само занятие — на стартовую дозу.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Опорный блок.</b> Упражнения, где поясница лежит на полу или прижата к спинке стула: грудь, спина, плечи, руки, ноги. Живёт отдельно от основной программы: можно делать через день, в том числе в дни отдыха. Нельзя только в первые дни обострения и в утро «явно заметнее». Новое упражнение — не чаще раза в неделю.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Тяжёлый день на работе.</b> Поднимал тяжёлое — отметь ссылкой под верхней карточкой. Следующее занятие пройдёт без прибавки, даже при чистом утре. Ближайшую неделю — больше ходьбы и сна.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)"><b>Воскресенье.</b> Одна минута: взвеситься и внести вес в Garmin, оценить энергию за неделю.</p>
       <p style="margin:10px 0 0;font-size:13px;color:var(--soft)">Два утренних вопроса легко перепутать. Разница простая: первый спрашивает «что со мной сейчас», второй — «что сделало вчерашнее занятие». Приложение всегда показывает только один из них, тот, который сегодня уместен.</p>
@@ -273,10 +277,11 @@
   </section>
 
   <section class="card" id="upCard">
-    <h2>Верх тела · после основного блока</h2>
+    <h2>Опорный блок · без нагрузки на спину</h2>
     <div id="upNote" style="font-size:13px;color:var(--soft);margin-bottom:8px"></div>
     <ol class="ex" id="upList"></ol>
-    <div style="margin-top:10px;font-size:13px;color:var(--soft)">Отмечай галочками — по ним приложение понимает, что верх был, и считает прогресс.</div>
+    <div class="btns"><button class="act" id="supSave">Сохранить опорный блок</button></div>
+    <div style="margin-top:10px;font-size:13px;color:var(--soft)">Через день: после основного занятия или в отдельный день, хоть в понедельник. После каждого упражнения отметь, как оно далось: <b>легко</b> — мог бы ещё 4 повтора и больше, <b>в самый раз</b> — ещё 1–3, <b>тяжело</b> — еле доделал. Два раза подряд «легко» — нагрузка растёт, два раза «тяжело» — шаг назад. Работай почти до усталости: от этого растут мышцы, даже с лёгким весом.</div>
   </section>
 
   <section class="card" id="reportCard">
@@ -411,7 +416,7 @@
 
   <div class="foot">
     <span class="lbl" id="mode">Сохранение…</span>
-    <span class="lbl" id="ver">v20</span>
+    <span class="lbl" id="ver">v21</span>
     <button id="reset">Очистить журнал</button>
   </div>
 </div>
@@ -659,7 +664,123 @@ var UPQUEUE = [
   {ch:'жим 3 кг: 2×12 → 2×15',                        d:{fp:'2×15 · 3 кг', brow:'2×15 · на шаг дальше', lat:'2×10 · 3 кг'}},
   {ch:'жим: вес 4 кг, 2×10 — конец этой очереди',     d:{fp:'2×10 · 4 кг', brow:'2×15 · на шаг дальше', lat:'2×10 · 3 кг'}}
 ];
-var UP_EVERY = 3;   // изменение верха — не чаще чем раз в 3 чистых занятия с верхом
+var UP_EVERY = 3;   // старый блок верха (до v21) — нужен только для переноса прогресса
+
+/* Опорный блок (v21): поясница на полу или у спинки, свой журнал и своя прогрессия. */
+var SUP_ORDER = ['fp','brow','lat','curl','tri','wall'];
+var SUP_EX = {
+  fp:   {nm:'Жим гантелей лёжа на полу', tip:UP_EX.fp.tip},
+  brow: {nm:'Тяга эспандера сидя со спинкой', tip:UP_EX.brow.tip},
+  lat:  {nm:'Махи гантелями в стороны сидя', tip:UP_EX.lat.tip},
+  curl: {nm:'Сгибания рук с гантелями сидя', tip:'Стул со спинкой, спина прижата, стопы на полу. Руки вдоль корпуса, ладони вперёд. Сгибаешь руки в локтях за 1–2 с, локти остаются у боков; опускаешь за 3 с почти до прямых рук. Корпус не раскачивается и от спинки не отрывается.'},
+  tri:  {nm:'Разгибания рук лёжа', tip:'Лёжа на коврике, колени согнуты, стопы на полу — как в жиме. Ложишься так же: гантели на бёдра и перекат на спину. Гантели в прямых руках над грудью, ладони друг к другу. Сгибаешь только локти и опускаешь гантели к вискам за 3 с, локти смотрят в потолок и не разъезжаются; разгибаешь за 1 с. Поясница на полу.'},
+  wall: {nm:'Стульчик у стены', tip:'Спина и затылок прижаты к стене, стопы на ширине плеч примерно в шаге от стены. Сползаешь вниз, пока колени не согнутся настолько, насколько им комфортно (не глубже прямого угла), колени над стопами. Держишь и ровно дышишь. Встаёшь, упираясь ладонями в бёдра. Поясница всё время прижата к стене.'}
+};
+function supDb(w0, w1){ var out = []; for (var w = w0; w <= w1; w++) [10, 12, 15].forEach(function(r){ out.push('2×' + r + ' · ' + w + ' кг'); }); return out; }
+var SUP_TUBES = ['самая лёгкая трубка','самая лёгкая, на шаг дальше','вторая трубка','вторая, на шаг дальше','третья трубка','третья, на шаг дальше','самая тугая трубка'];
+function supBand(){ var out = []; SUP_TUBES.forEach(function(t){ [12, 15].forEach(function(r){ out.push('2×' + r + ' · ' + t); }); }); return out; }
+var SUP_LADDER = {
+  fp: supDb(2, 12), brow: supBand(), lat: supDb(2, 8), curl: supDb(2, 12), tri: supDb(2, 10),
+  wall: ['2×20 с','2×30 с','2×40 с','2×45 с','2×60 с','3×60 с']
+};
+var SUP_R = {easy:'легко', ok:'в самый раз', hard:'тяжело'};
+var supPick = {};
+
+function supInit(){
+  // перенос из старого блока «Верх тела»: те же упражнения и дозы
+  var sp = {lvl:{}, easy:{}, hard:{}, done:{}, changed:{}, intro:1, introAt:today(), log:[]};
+  SUP_ORDER.forEach(function(k){ sp.lvl[k] = 0; });
+  var q = UPQUEUE[Math.min(S.upStep || 0, UPQUEUE.length - 1)].d;
+  var n = 0;
+  ['fp','brow','lat'].forEach(function(k){
+    if (!q[k]) return;
+    n++;
+    var lbl = k === 'brow' ? q[k].replace('на шаг дальше', 'самая лёгкая, на шаг дальше').replace(/самая лёгкая$/, 'самая лёгкая трубка') : q[k];
+    var i = SUP_LADDER[k].indexOf(lbl);
+    if (i > 0) sp.lvl[k] = i;
+  });
+  sp.intro = Math.max(1, n);
+  if (S.upChangedAt) sp.introAt = S.upChangedAt;
+  if ((S.upStep || 0) >= 0 && S.sessions.some(function(x){ return x.upDid; })) sp.done.fp = 2;
+  return sp;
+}
+function supDoneOn(d){
+  var L = S.sup.log;
+  for (var i = L.length - 1; i >= 0; i--){ if (L[i].date === d) return L[i]; }
+  return null;
+}
+function supLastDone(k){
+  var L = S.sup.log;
+  for (var i = L.length - 1; i >= 0; i--){ if (L[i].items[k]) return L[i].date; }
+  return null;
+}
+function supState(){
+  var t = today();
+  if (supDoneOn(t)) return {ok:false, k:'done'};
+  if (inPause()) return {ok:false, k:'pause'};
+  var gv = (S.gate && S.gate.date === t) ? S.gate.value : null;
+  var mv = null;
+  S.sessions.forEach(function(x){ if (x.mDate === t && has(x.morning)) mv = x.morning; });
+  if ((gv !== null && gv >= 2) || (mv !== null && mv >= 2)) return {ok:false, k:'back'};
+  if (supDoneOn(addDays(t, -1))) return {ok:false, k:'yesterday'};
+  return {ok:true, k:'ok'};
+}
+function supNewReady(){
+  var sp = S.sup;
+  if (sp.intro >= SUP_ORDER.length) return false;
+  var last = SUP_ORDER[sp.intro - 1];
+  return daysBetween(sp.introAt, today()) >= 7 && (sp.done[last] || 0) >= 2;
+}
+function supMenu(){
+  var sp = S.sup, out = [];
+  SUP_ORDER.slice(0, sp.intro).forEach(function(k){ out.push({k:k, nm:SUP_EX[k].nm, dose:SUP_LADDER[k][sp.lvl[k]], tip:SUP_EX[k].tip, isNew:false}); });
+  if (supNewReady()){
+    var k = SUP_ORDER[sp.intro];
+    out.push({k:k, nm:SUP_EX[k].nm, dose:SUP_LADDER[k][sp.lvl[k]], tip:SUP_EX[k].tip, isNew:true});
+  }
+  return out;
+}
+function supBadge(e){
+  if (e.isNew) return 'новое';
+  var ch = S.sup.changed[e.k];
+  if (!ch) return '';
+  var ld = supLastDone(e.k);
+  return (!ld || ld <= ch) ? '↑ изменено' : '';
+}
+function supLine(d){
+  var L = supDoneOn(d);
+  if (!L) return '';
+  return Object.keys(L.items).map(function(k){ return SUP_EX[k].nm + ' ' + L.items[k].dose + ' — ' + SUP_R[L.items[k].r]; }).join(' · ');
+}
+function supSave(){
+  var items = {}, msgs = [], sp = S.sup;
+  supMenu().forEach(function(e){
+    var r = supPick[e.k];
+    if (!r) return;
+    items[e.k] = {dose:e.dose, r:r};
+    var first = !(sp.done[e.k] > 0);
+    sp.done[e.k] = (sp.done[e.k] || 0) + 1;
+    if (e.isNew){ sp.intro += 1; msgs.push('добавлено: ' + e.nm.toLowerCase()); }
+    if (first) sp.introAt = today();   // неделя до следующего нового — от первого настоящего раза
+    if (r === 'easy'){
+      sp.easy[e.k] = (sp.easy[e.k] || 0) + 1; sp.hard[e.k] = 0;
+      if (sp.easy[e.k] >= 2 && SUP_LADDER[e.k][sp.lvl[e.k] + 1]){
+        sp.lvl[e.k] += 1; sp.easy[e.k] = 0; sp.changed[e.k] = today();
+        msgs.push(e.nm.toLowerCase() + ': дальше ' + SUP_LADDER[e.k][sp.lvl[e.k]]);
+      }
+    } else if (r === 'hard'){
+      sp.hard[e.k] = (sp.hard[e.k] || 0) + 1; sp.easy[e.k] = 0;
+      if (sp.hard[e.k] >= 2 && sp.lvl[e.k] > 0){
+        sp.lvl[e.k] -= 1; sp.hard[e.k] = 0; sp.changed[e.k] = today();
+        msgs.push(e.nm.toLowerCase() + ': назад к ' + SUP_LADDER[e.k][sp.lvl[e.k]]);
+      }
+    } else { sp.easy[e.k] = 0; sp.hard[e.k] = 0; }
+  });
+  if (!Object.keys(items).length){ toast('Отметь, как прошло хотя бы одно упражнение'); return; }
+  sp.log.push({date:today(), items:items});
+  supPick = {};
+  saveState().then(function(){ render(); toast(msgs.length ? msgs.join(' · ') : 'Опорный блок сохранён'); });
+}
 
 function upMenu(){
   var q = UPQUEUE[Math.min(S.upStep || 0, UPQUEUE.length - 1)], out = [];
@@ -740,18 +861,50 @@ function exItem(list, e, store, badge){
 }
 
 function renderUpper(){
-  var list = $('upList'), note = $('upNote');
+  var list = $('upList'), note = $('upNote'), btn = $('supSave');
   list.innerHTML = '';
-  if (!upActiveToday()){
-    note.innerHTML = '<b>Сегодня без верха.</b> ' + esc(S.upWhy || 'Занятие только для спины.');
+  var st = supState(), menuNow = supMenu();
+  $('upCard').className = 'card';
+  btn.hidden = !st.ok;
+  if (st.k === 'done'){
+    note.innerHTML = '<b>Сегодня сделано.</b> Следующий раз — послезавтра или позже: мышцам нужен день между занятиями.';
+    var L = supDoneOn(today());
+    Object.keys(L.items).forEach(function(k){
+      var li = document.createElement('li'); li.className = 'done';
+      li.innerHTML = '<span class="nm">' + esc(SUP_EX[k].nm) + '</span> <span class="dose">' + esc(L.items[k].dose) + '</span> <span class="badge">' + SUP_R[L.items[k].r] + '</span>';
+      list.appendChild(li);
+    });
     return;
   }
-  var st = S.upStep || 0, q = UPQUEUE[Math.min(st, UPQUEUE.length - 1)];
-  var left = UP_EVERY - (S.upSince || 0);
-  var word = left === 1 ? 'чистое занятие' : 'чистых занятия';
-  note.textContent = 'Шаг ' + (st + 1) + ' из ' + UPQUEUE.length + ' · ' + q.ch +
-    (UPQUEUE[st + 1] ? ' · следующее изменение через ' + left + ' ' + word : '');
-  upMenu().forEach(function(e){ exItem(list, e, upChecked, upBadgeFor(e.k)); });
+  if (st.k === 'pause') note.innerHTML = '<b>Пауза.</b> Первые дни обострения — только ходьба и дыхание. Блок вернётся, когда закончится пауза.';
+  else if (st.k === 'back') note.innerHTML = '<b>Сегодня без него.</b> Утром спина «явно заметнее» или хуже — сегодня только ходьба.';
+  else if (st.k === 'yesterday') note.innerHTML = '<b>Мышцы отдыхают.</b> Блок был вчера, нужен день перерыва. Следующий — завтра.';
+  else note.innerHTML = '<b>Можно сегодня.</b> ' + (menuNow.some(function(e){ return e.isNew; }) ? 'В списке новое упражнение. Если спина сегодня «чуть заметнее», просто не отмечай его — оно подождёт.' : 'После основного занятия или отдельно.');
+  if (!st.ok) $('upCard').className = 'card muted';
+  menuNow.forEach(function(e){
+    var li = document.createElement('li');
+    var badge = supBadge(e);
+    var g = document.createElement('div');
+    g.innerHTML = '<span class="nm">' + esc(e.nm) + '</span> <span class="dose">' + esc(e.dose) + '</span>' +
+      (badge ? '<span class="badge">' + badge + '</span>' : '');
+    if (e.isNew) { var nn = document.createElement('div'); nn.className = 'supnew'; nn.textContent = 'Первый раз — с запасом, без спешки. Засчитается, когда отметишь.'; g.appendChild(nn); }
+    var tb = document.createElement('button'); tb.className = 'tipbtn'; tb.textContent = 'техника';
+    var tp = document.createElement('div'); tp.className = 'tip'; tp.textContent = e.tip;
+    tb.onclick = function(){ var on = tp.className.indexOf('on') > -1; tp.className = on ? 'tip' : 'tip on'; tb.textContent = on ? 'техника' : 'скрыть'; };
+    g.appendChild(document.createElement('br')); g.appendChild(tb); g.appendChild(tp);
+    var rate = document.createElement('div'); rate.className = 'rate';
+    ['easy','ok','hard'].forEach(function(r){
+      var b = document.createElement('button');
+      b.className = 'mini' + (supPick[e.k] === r ? ' on' : '');
+      b.textContent = SUP_R[r];
+      b.onclick = function(){ if (supPick[e.k] === r) delete supPick[e.k]; else supPick[e.k] = r; renderUpper(); };
+      rate.appendChild(b);
+    });
+    g.appendChild(rate);
+    if (supPick[e.k]) li.className = 'done';
+    li.appendChild(g);
+    list.appendChild(li);
+  });
 }
 
 var fDuringV = null, fAfterV = null, fFearV = null;
@@ -791,7 +944,9 @@ function saveState(){ return Store.set(KEY, JSON.stringify(S)); }
 function load(){
   return Store.get(KEY).then(function(raw){
     if (raw){ try{ S = JSON.parse(raw); }catch(e){} }
+    var hadSup = !!(S.sup && S.sup.lvl);
     normalize();
+    if (!hadSup && raw) saveState();
 
     if (Store.mode === 'claude'){
       $('mode').textContent = 'Сохраняется в чате';
@@ -819,6 +974,10 @@ function normalize(){
     if (typeof S.upSince !== 'number') S.upSince = 0;
     if (typeof S.upHold !== 'number') S.upHold = 0;
     if (!S.weekly) S.weekly = [];
+    if (!S.sup || !S.sup.lvl) S.sup = supInit();
+    SUP_ORDER.forEach(function(k){ if (typeof S.sup.lvl[k] !== 'number') S.sup.lvl[k] = 0; });
+    ['easy','hard','done','changed'].forEach(function(f){ if (!S.sup[f]) S.sup[f] = {}; });
+    if (!S.sup.log) S.sup.log = [];
     if (!S.flare){
       // v19 и раньше откатывали на старт, не запоминая, откуда. Восстанавливаем по последнему занятию.
       var le0 = lastEpisode(), ls0 = lastSessionDate();
@@ -1095,9 +1254,8 @@ function renderNow(){
     if (!has(sit.s.after)) afterRow('Вчера не отмечено «через час». Если помнишь — отметь, если нет — пропусти.', sit.s);
     opts(function(v){
       sit.s.morning = v;
+      sit.s.mDate = today();
       var msg = applyVerdict();
-      var um = applyUpper(sit.s);
-      if (um) msg += ' · ' + um;
       saveState().then(function(){ render(); toast(msg); });
     });
     why('<b>Это единственный ответ, который меняет нагрузку.</b> Отвечай сразу после подъёма, до того как расходишься.');
@@ -1184,7 +1342,6 @@ function renderNow(){
 
   $('doseCard').className = 'card' + (canTrain ? '' : ' muted');
   $('reportCard').className = 'card' + (canTrain ? '' : ' muted');
-  $('upCard').className = 'card' + (canTrain ? '' : ' muted');
 }
 
 function applyVerdict(){
@@ -1371,6 +1528,7 @@ function render(){
       h += '<tr><td></td><td colspan="6" class="n sub">' + esc(s.full || s.dose) +
            (has(s.fear) ? ' · настороженность ' + s.fear : '') +
            (s.up ? ' · верх: ' + esc(s.up) : '') +
+           (supLine(s.date) ? ' · опорный блок: ' + esc(supLine(s.date)) : '') +
            (s.note ? ' · ' + esc(s.note) : '') + '</td></tr>';
     }
     var extra = '';
@@ -1554,6 +1712,7 @@ function copySession(idx){
     'Утро перед занятием: ' + shortOf(s.pre) + '\n' +
     'Сделано: ' + (s.full || s.dose) + '\n' +
     (s.up ? 'Верх: ' + s.up + (s.upTotal ? ' (отмечено ' + s.upDone + ' из ' + s.upTotal + ')' : '') + '\n' : '') +
+    (supLine(s.date) ? 'Опорный блок: ' + supLine(s.date) + '\n' : '') +
     (has(s.done) ? 'Отмечено: ' + s.done + ' из ' + s.total + '\n' : '') +
     'Во время: ' + num(s.during) + '/10\n' +
     'Через час: ' + num(s.after) + '/10\n' +
@@ -1598,10 +1757,6 @@ $('save').onclick = function(){
     full: menu(S.step).map(function(e){ return e.nm + ' ' + e.dose; }).join(' · '),
     done: menu(S.step).filter(function(e){ return checked[e.k]; }).length,
     total: menu(S.step).length,
-    up: upActiveToday() ? upMenu().map(function(e){ return e.nm + ' ' + e.dose; }).join(' · ') : 'без верха',
-    upDone: upActiveToday() ? upMenu().filter(function(e){ return upChecked[e.k]; }).length : 0,
-    upTotal: upActiveToday() ? upMenu().length : 0,
-    upDid: upActiveToday() && upMenu().some(function(e){ return upChecked[e.k]; }),
     during: fDuringV,
     after: fAfterV,
     fear: fFearV,
@@ -1682,6 +1837,8 @@ $('fileIn').onchange = function(){
   r.readAsText(f, 'utf-8');
   $('fileIn').value = '';
 };
+
+$('supSave').onclick = supSave;
 
 /* Свободный список на день: сворачивается в строку, сохраняется при вводе. */
 function fitNotes(){
